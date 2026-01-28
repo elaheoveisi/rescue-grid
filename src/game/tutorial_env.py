@@ -131,6 +131,18 @@ class TutorialEnv(SARLevelGen):
                 print("Error placing key in tutorial part 3:", e)
                 raise
 
+        # Add a blue key at (center_x, center_y+1) if free, else green key at (center_x+1, center_y+1)
+        try:
+            bx, by = center_x, center_y + 1
+            if self.grid.get(bx, by) is None:
+                self.grid.set(bx, by, Key("blue"))
+            else:
+                gx, gy = center_x + 1, center_y + 1
+                if self.grid.get(gx, gy) is None:
+                    self.grid.set(gx, gy, Key("green"))
+        except Exception as e:
+            print("Error placing blue/green key in tutorial room:", e)
+
         # Default instruction generation fallback: provide a minimal tutorial
         # instruction object so downstream code that expects an `instrs`
         # with a `surface()` method won't crash.
@@ -151,40 +163,54 @@ class TutorialEnv(SARLevelGen):
 
         self.instrs = TutorialInstr()
 
+
     def step(self, action):
-        """Intercept pickup action to handle victims in tutorial rooms."""
-        # If pickup action, mimic RescueAction logic for tutorial victims
+        """Intercept pickup and drop actions for tutorial rooms."""
+        # Handle pickup action (victims)
         if action == getattr(self.actions, "pickup", None):
-            # front position provided by LevelGen / MiniGrid
             fwd_pos = getattr(self, "front_pos", None)
             if fwd_pos is None:
                 return super().step(action)
-
-            # Ensure forward position is in-bounds before accessing the grid
             try:
                 fx, fy = int(fwd_pos[0]), int(fwd_pos[1])
             except Exception:
                 return super().step(action)
-
             if not (0 <= fx < self.width and 0 <= fy < self.height):
                 return super().step(action)
-
             obj = self.grid.get(fx, fy)
             reward = 0
-
             if isinstance(obj, REAL_VICTIMS):
                 self.grid.set(*fwd_pos, None)
                 self.saved_victims = getattr(self, "saved_victims", 0) + 1
                 reward = 1.0
                 obs = self.gen_obs()
                 terminated = False
-                # If in part 1, mark that we've picked the victim; do not
-                # auto-advance. We'll advance when the agent leaves the room.
                 if getattr(self, "current_part", 1) == 1:
                     self.part1_picked = True
                 return obs, reward, terminated, False, {}
             else:
                 return super().step(action)
+
+        # Handle drop action (drop key in front if held)
+        if action == getattr(self.actions, "drop", None):
+            # Only drop if agent is holding a key
+            if hasattr(self, "carrying") and self.carrying is not None and self.carrying.type == "key":
+                fwd_pos = getattr(self, "front_pos", None)
+                if fwd_pos is not None:
+                    try:
+                        fx, fy = int(fwd_pos[0]), int(fwd_pos[1])
+                    except Exception:
+                        fx, fy = None, None
+                    if fx is not None and fy is not None and 0 <= fx < self.width and 0 <= fy < self.height:
+                        if self.grid.get(fx, fy) is None:
+                            # Place the key in front and clear carrying
+                            self.grid.set(fx, fy, self.carrying)
+                            self.carrying = None
+                            obs = self.gen_obs()
+                            return obs, 0.0, False, False, {"dropped": True}
+            # If can't drop, just do nothing (no end)
+            obs = self.gen_obs()
+            return obs, 0.0, False, False, {"dropped": False}
 
         # Execute other actions normally
         # Intercept toggle (door open) to spawn a popup single-room window

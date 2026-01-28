@@ -99,6 +99,15 @@ class User:
                         return
                     except Exception:
                         pass
+            if raw_key == pygame.K_LSHIFT or raw_key == pygame.K_RSHIFT:
+                action = getattr(self.env.actions, "drop", None)
+                if action is not None:
+                    try:
+                        obs, reward, terminated, truncated, info = self.env.step(action)
+                        self.env.render()
+                        return
+                    except Exception:
+                        pass
             if raw_key == pygame.K_SPACE:
                 action = getattr(self.env.actions, "toggle", None)
                 if action is not None:
@@ -140,6 +149,7 @@ class User:
             # keep some common aliases
             "left": getattr(self.env.actions, "left", None),
             "right": getattr(self.env.actions, "right", None),
+            "shift": getattr(self.env.actions, "drop", None),
         }
 
         action = key_to_action.get(key_name)

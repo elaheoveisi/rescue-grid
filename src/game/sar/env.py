@@ -1,6 +1,6 @@
 import random
 
-from minigrid.core.world_object import Door
+from minigrid.core.world_object import Door, Key
 
 from ..core.level import SARLevelGen
 from .actions import RescueAction
@@ -211,6 +211,21 @@ class PickupVictimEnv(SARLevelGen):
         # Add locked rooms (20% of rooms - balanced between challenge and generation speed)
         n_locked = max(1, int(self.num_cols * self.num_rows * self.locked_room_prob))
         self.add_locked_rooms(n_locked)
+
+        # Place a blue key in the second room (row-major scanning: i=0, j=1)
+        try:
+            if self.num_rows * self.num_cols >= 2:
+                # Use get_room(i, j) with i=row, j=col (VictimPlacer ordering)
+                room = self.get_room(0, 1)
+                if room is not None:
+                    xL, yT = room.top
+                    # Place on the left side of the room (one tile inside the left wall)
+                    key_x = xL + 1
+                    key_y = yT + (self.room_size // 2)
+                    self.grid.set(key_x, key_y, Key("blue"))
+        except Exception:
+            # Best-effort placement; fail silently if room lookup fails
+            pass
 
         self.connect_all()
 
