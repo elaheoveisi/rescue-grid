@@ -1,6 +1,7 @@
 import numpy as np
 import pygame
 from minigrid.envs.babyai.core.levelgen import LevelGen
+from minigrid.core.world_object import Door
 
 from .camera import CameraStrategy, EdgeFollowCamera
 
@@ -109,3 +110,34 @@ class SARLevelGen(LevelGen):
     def switch_camera(self, camera_strategy: CameraStrategy):
         """Switch to a different camera strategy at runtime."""
         self.camera = camera_strategy
+
+    def step(self, action):
+        """Intercept forward action to block movement through closed doors.
+
+        If the tile in front of the agent is a closed Door, the forward action
+        will be blocked and the environment will not move the agent. This
+        requires the agent to use the toggle action (mapped to Space) to open
+        the door first.
+        """
+        try:
+            if action == getattr(self.actions, "forward", None):
+                fwd = getattr(self, "front_pos", None)
+                if fwd is not None:
+                    # Validate forward position is within grid bounds before querying
+                    try:
+                        fx, fy = int(fwd[0]), int(fwd[1])
+                    except Exception:
+                        fx, fy = None, None
+
+                    if fx is None or fy is None or not (0 <= fx < self.width and 0 <= fy < self.height):
+                        # Forward cell is outside the grid — treat as blocked (no move)
+                        return self.get_camera_view(), 0.0, False, False, {"blocked_by_bounds": True}
+
+                    obj = self.grid.get(fx, fy)
+                    if isinstance(obj, Door) and not getattr(obj, "is_open", False):
+                        # Return current observation without advancing when blocked
+                        return self.get_camera_view(), 0.0, False, False, {"blocked_by_door": True}
+        except Exception:
+            pass
+
+        return super().step(action)

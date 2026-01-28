@@ -20,6 +20,8 @@ class SAREnvGUI:
         self.window = env.window
         self.fullscreen = fullscreen
 
+        # Ensure we have a defined `screen_size` whether the env provided
+        # a window surface or we need to create one here.
         if self.window is None:
             display_flags = pygame.FULLSCREEN if self.fullscreen else 0
             if self.fullscreen:
@@ -28,6 +30,14 @@ class SAREnvGUI:
                 self.screen_size = self.window.get_size()
             else:
                 self.window = pygame.display.set_mode(self.window_size, display_flags)
+                self.screen_size = self.window_size
+        else:
+            # If an external window/surface was provided by the env, try to
+            # derive the screen size from it; otherwise fall back to
+            # the expected window size.
+            try:
+                self.screen_size = self.window.get_size()
+            except Exception:
                 self.screen_size = self.window_size
 
         # Calculate offsets to center the game content
@@ -84,6 +94,13 @@ class SAREnvGUI:
 
         if self.clock is None:
             self.clock = pygame.time.Clock()
+        # Ensure the window grabs keyboard focus so key events are received
+        try:
+            pygame.event.set_grab(True)
+            # Enable key repeat for held keys (delay, interval) in ms
+            pygame.key.set_repeat(200, 50)
+        except Exception:
+            pass
 
     def render(self, frame):
         # Fill the screen with black (for fullscreen centering)
@@ -127,6 +144,7 @@ class SAREnvGUI:
         self.user.reset()
 
     def handle_gui_events(self, event):
+        # Forward events to pygame_gui; no custom popup handling here.
         self.manager.process_events(event)
 
     def handle_user_input(self, event):
@@ -138,7 +156,7 @@ class SAREnvGUI:
             elif event.key == pygame.K_F11:
                 self.toggle_fullscreen()
             else:
-                event.key = pygame.key.name(int(event.key))
+                # Pass raw event to user; do not mutate event.key (needed by ManualControl)
                 self.user.handle_key(event)
 
     def toggle_fullscreen(self):
