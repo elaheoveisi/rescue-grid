@@ -1,148 +1,74 @@
-from minigrid.core.world_object import Door, Key
+import random
+
+from minigrid.core.constants import COLOR_NAMES
+from minigrid.core.world_object import Ball, Door, Key
+from minigrid.envs.babyai.core.verifier import ObjDesc, OpenInstr, PickupInstr
+
 from .core.level import SARLevelGen
-from .sar.objects import REAL_VICTIMS, VictimDown, FakeVictim
+from .sar.actions import RescueAction
 
 
-class OptimizedSAREnv(SARLevelGen):
-
+class TutorialEnv(SARLevelGen):
     def __init__(self, config=None, **kwargs):
         config = config or {}
-        start_part = kwargs.pop("start_part", None)
-        total_parts = kwargs.pop("total_parts", None)
         kwargs.setdefault("num_rows", 1)
         kwargs.setdefault("num_cols", 1)
         super().__init__(**kwargs)
-
-        self.current_part = start_part if start_part is not None else config.get("start_part", 1)
-        self.total_parts = total_parts if total_parts is not None else config.get("total_parts", 3)
-        self.saved_victims = 0
-
-    # ─────────────────────────────
+        self.resuce_action = RescueAction(self)
 
     def gen_mission(self):
-        self.connect_all()
-
-        cx = cy = self.room_size // 2
         self.agent_pos = (1, 1)
         self.agent_dir = 0
 
-        rooms = {
-            1: self._room1,
-            2: self._room2,
-            3: self._room3
-        }
+        target = self._place_random_objects()
 
-        rooms.get(self.current_part, self._room3)(cx, cy)
+        if isinstance(target, Door):
+            self.mission = f"Open the {target.color} door"
+            self.instrs = OpenInstr(ObjDesc(target.type, target.color))
+        else:
+            self.mission = f"Pick up the {target.color} {target.type}"
+            self.instrs = PickupInstr(ObjDesc(target.type, target.color))
 
-        self.mission = f"Tutorial {self.current_part}/{self.total_parts}"
-        self.instrs = type("I", (), {
-            "surface": lambda s, e: [],
-            "reset_verifier": lambda s, e: setattr(s, "env", e) or None,
-            #"update_objs_poss": lambda s: None,
-            "verify": lambda s, *a, **k: "incomplete",
-        })()
+        print(self.mission)
 
-    # ─────────────────────────────
+    def _place_random_objects(self):
+        # Always place a door — random color, randomly locked or unlocked
+        door_color = random.choice(COLOR_NAMES)
+        locked = random.choice([True, False])
+        door = Door(door_color, is_locked=locked)
 
-    def _room1(self, cx, cy):
-        self.grid.set(cx, cy, VictimDown())
-        self.grid.set(cx - 1, cy, Key("red"))
-        self.grid.set(cx, cy + 1, Key("blue"))
-        self._add_door(False)
+        # Pick a random wall (0=right, 1=bottom, 2=left, 3=top) and position along it
+        wall = random.randint(0, 3)
+        if wall == 0:
+            x, y = self.width - 1, random.randint(1, self.height - 2)
+        elif wall == 1:
+            x, y = random.randint(1, self.width - 2), self.height - 1
+        elif wall == 2:
+            x, y = 0, random.randint(1, self.height - 2)
+        else:
+            x, y = random.randint(1, self.width - 2), 0
+        self.grid.set(x, y, door)
 
-    def _room2(self, cx, cy):
-        self.grid.set(cx, cy, Key("red"))
-        self.grid.set(cx - 1, cy, FakeVictim("left", "up", color="red"))
-        self.grid.set(cx + 1, cy, VictimDown())
-        self.grid.set(cx, cy + 1, Key("blue"))
-        self._add_door(True)
+        # If locked, place a matching key so the agent can open it
+        if locked:
+            self.place_in_room(0, 0, Key(door_color))
 
-    def _room3(self, cx, cy):
-        self.grid.set(cx, cy, Key("yellow"))
-        self.grid.set(cx, cy + 1, Key("blue"))
-        self.grid.set(cx - 2, cy, FakeVictim("right", "down", color="red"))
+        # Pick a key color different from the door color to avoid ambiguity
+        other_colors = [c for c in COLOR_NAMES if c != door_color]
+        key_color = random.choice(other_colors)
 
-    # ─────────────────────────────
+        # Randomly select a mission target: a key, a ball, or the door itself
+        for i in range(5):
+            target = random.choice([Key(key_color), Ball(), door])
+            if target is not door:
+                self.place_in_room(0, 0, target)
 
-    def _add_door(self, locked):
-        y = self.room_size // 2
-        self.grid.set(self.width - 1, y, Door("red", is_locked=locked))
-
-    def _advance(self):
-        if self.current_part < self.total_parts:
-            self.current_part += 1
-            self.reset()
-
-    # ─────────────────────────────
-
-    def step(self, action):
-
-        if action == self.actions.pickup:
-            fx, fy = self.front_pos
-            obj = self.grid.get(fx, fy)
-
-            if isinstance(obj, (REAL_VICTIMS, FakeVictim)):
-                self.grid.set(fx, fy, None)
-                self.saved_victims += 1
-                return self.gen_obs(), 1.0, False, False, {}
-
-            if isinstance(obj, Key) and self.carrying is None:
-                self.carrying = obj
-                self.grid.set(fx, fy, None)
-                return self.gen_obs(), 0.0, False, False, {}
-
-        if action == self.actions.drop:
-            c = self.carrying
-            if c and getattr(c, "type", None) == "key":
-                fx, fy = self.front_pos
-                if 0 <= fx < self.width and 0 <= fy < self.height and self.grid.get(fx, fy) is None:
-                    self.grid.set(fx, fy, c)
-                    self.carrying = None
-                    return self.gen_obs(), 0.0, False, False, {"dropped": True}
-            return self.gen_obs(), 0.0, False, False, {"dropped": False}
-
-        if action == self.actions.toggle:
-            fx, fy = self.front_pos
-            obj = self.grid.get(fx, fy)
-
-            if isinstance(obj, Door):
-                if obj.is_locked and self.carrying and self.carrying.color == obj.color:
-                    obj.is_locked = False
-                    obj.is_open = True
-                    self.carrying = None
-                    self._advance()
-                elif not obj.is_locked:
-                    obj.is_open = True
-                    self._advance()
-
-        return super().step(action)
-
-    def validate_instrs(self, instrs):
-        if instrs is None or (hasattr(instrs, "surface") and hasattr(instrs, "verify")):
-            return
-        return super().validate_instrs(instrs)
-
-    def num_navs_needed(self, instrs):
-        if instrs is None or (hasattr(instrs, "surface") and hasattr(instrs, "verify")):
-            return max(40, 4 * self.room_size)
-        return super().num_navs_needed(instrs)
-
-    def get_all_victims(self):
-        victims = []
-        for x in range(self.width):
-            for y in range(self.height):
-                obj = self.grid.get(x, y)
-                if isinstance(obj, REAL_VICTIMS) or isinstance(obj, FakeVictim):
-                    victims.append(obj)
-        return victims
+        return target
 
     def get_mission_status(self):
-        remaining_victims = len(self.get_all_victims())
-        status = "success" if self.current_part >= self.total_parts and remaining_victims == 0 else "incomplete"
+        status = "tutorial"
         return {
-            "part": self.current_part,
-            "saved_victims": self.saved_victims,
-            "remaining_victims": remaining_victims,
+            "saved_victims": 0,
+            "remaining_victims": 0,
             "status": status,
         }
-TutorialEnv = OptimizedSAREnv
