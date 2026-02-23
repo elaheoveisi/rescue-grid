@@ -4,6 +4,11 @@ import yaml
 from game.gui.main import SAREnvGUI
 from game.sar.env import PickupVictimEnv
 from game.sar.utils import VictimPlacer
+
+try:
+    from game.tutorial_env import TutorialEnv
+except ImportError:
+    pass
 from utils import skip_run
 
 # Load config
@@ -31,6 +36,23 @@ with skip_run("run", "sar_gui_advanced") as check, check():
         tile_size=64,
         victim_placer=victim_placer,
     )
+    env.reset()
+    gui = SAREnvGUI(env, fullscreen=False)
+    gui.run()
+
+
+with skip_run("run", "tutorial") as check, check():
+    # Access the width and height of the current display
+    screen_height = pygame.display.Info().current_h
+
+    env = TutorialEnv(
+        num_rows=1,
+        num_cols=1,
+        screen_size=800,
+        render_mode="rgb_array",
+        agent_pov=True,
+    )
+
     env.reset()
     gui = SAREnvGUI(env, fullscreen=False)
     gui.run()
