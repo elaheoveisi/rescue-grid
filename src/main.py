@@ -54,5 +54,5 @@ with skip_run("run", "tutorial") as check, check():
     )
 
     env.reset()
-    gui = SAREnvGUI(env, fullscreen=True)
+    gui = SAREnvGUI(env, fullscreen=False)
     gui.run()

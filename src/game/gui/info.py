@@ -122,11 +122,12 @@ class InfoPanel:
         steps = getattr(env, "step_count", 0)
         max_steps = getattr(env, "max_steps", 0)
         carrying = getattr(env, "carrying", None)
-
         self.steps_label.set_text(f"Steps: {steps} / {max_steps}")
 
         if carrying:
-            inventory_text = f"Inventory: {carrying.color.capitalize()} Key"
+            inventory_text = (
+                f"Inventory: {carrying.color.capitalize()} {carrying.type.capitalize()}"
+            )
             # Set color based on key color
             key_color_map = {
                 "red": "#red_key",
