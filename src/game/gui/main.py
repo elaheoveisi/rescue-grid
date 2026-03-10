@@ -6,6 +6,8 @@ from .chat import ChatPanel
 from .info import InfoPanel
 from .user import User
 
+from pygame._sdl2.video import Window
+
 pygame.init()
 
 
