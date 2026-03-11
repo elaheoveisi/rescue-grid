@@ -1,37 +1,69 @@
+from minigrid.core.actions import Actions
 from minigrid.manual_control import ManualControl
 
-from . import llm
+from .llm import ask, to_text
 
 
 class User(ManualControl):
     def __init__(self, env):
         self.env = env
-        self.controller = ManualControl(env)
+        self.obs = None
+
+    def step(self, action: Actions):
+        self.obs, reward, terminated, truncated, info = self.env.step(action)
+        self.last_action = int(action)
+        self.last_reward = float(reward)
+        self.terminated = bool(terminated)
+        self.truncated = bool(truncated)
+
+        print(to_text(self.obs))
+
+        if terminated:
+            print("terminated!")
+            self.reset()
+        elif truncated:
+            print("truncated!")
+            self.reset()
+        else:
+            self.env.render()
 
     def handle_key(self, event):
-        self.controller.key_handler(event)
+        key: str = event.key
+
+        if key == "escape":
+            self.env.close()
+            return
+        if key == "backspace":
+            self.reset()
+            return
+
+        key_to_action = {
+            "left": Actions.left,
+            "right": Actions.right,
+            "up": Actions.forward,
+            "space": Actions.toggle,
+            "pageup": Actions.pickup,
+            "pagedown": Actions.drop,
+            "tab": Actions.pickup,
+            "left shift": Actions.drop,
+            "enter": Actions.done,
+        }
+        if key in key_to_action.keys():
+            action = key_to_action[key]
+            self.step(action)
 
     def get_frame(self):
         return self.env.render()
 
     def reset(self):
-        self.controller.reset()
-
-    def get_game_context(self) -> str:
-        """Format current env state as a text summary for the LLM."""
-        status = self.env.get_mission_status()
-        steps = getattr(self.env, "step_count", 0)
-        max_steps = getattr(self.env, "max_steps", 0)
-        carrying = getattr(self.env, "carrying", None)
-        inventory = f"{carrying.color.capitalize()} Key" if carrying else "None"
-        return (
-            f"Mission status: {status['status']}\n"
-            f"Victims rescued: {status['saved_victims']}\n"
-            f"Victims remaining: {status['remaining_victims']}\n"
-            f"Steps taken: {steps} / {max_steps}\n"
-            f"Inventory: {inventory}"
-        )
+        obs, info = self.env.reset()
+        self.last_action = None
+        self.last_reward = 0.0
+        self.terminated = False
+        self.truncated = False
+        self.obs = obs
 
     def ask_llm(self) -> str:
         """Ask the LLM for advice based on the current game state."""
-        return llm.ask(self.get_game_context())
+
+        return ask(self.obs)

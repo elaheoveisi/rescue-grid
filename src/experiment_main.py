@@ -13,7 +13,6 @@ with Path("configs/experiment.yaml").open() as f:
 
 
 ray.init(ignore_reinit_error=True, _system_config={"metrics_report_interval_ms": 0})
-
 experiment = Experiment(config)
 
 # experiment.add_task(

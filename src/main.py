@@ -17,7 +17,7 @@ with open(config_path, "r") as file:
     config = yaml.safe_load(file)
 
 
-with skip_run("skip", "sar_gui_advanced") as check, check():
+with skip_run("run", "sar_gui_advanced") as check, check():
     # Access the width and height of the current display
     screen_height = pygame.display.Info().current_h
     victim_placer = VictimPlacer(
@@ -41,7 +41,7 @@ with skip_run("skip", "sar_gui_advanced") as check, check():
     gui.run()
 
 
-with skip_run("run", "tutorial") as check, check():
+with skip_run("skip", "tutorial") as check, check():
     # Access the width and height of the current display
     screen_height = pygame.display.Info().current_h
 

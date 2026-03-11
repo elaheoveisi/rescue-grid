@@ -3,20 +3,20 @@ from __future__ import annotations
 from typing import Any
 
 import pygame
+import ujson
 from ixp.task import Block, LSLTrial, Task
 
 from game.gui.main import SAREnvGUI
 from game.sar.env import PickupVictimEnv
 from game.sar.utils import VictimPlacer
 
-_CHANNEL_NAMES = ["agent_x", "agent_y", "agent_dir", "step_count", "saved_victims"]
-
 
 class SARGameTrial(LSLTrial):
     """LSL-streaming trial for the SAR rescue game.
 
-    Streams five game-state channels at each rendered frame (~30 Hz):
-    agent_x, agent_y, agent_dir, step_count, saved_victims.
+    Streams game state as a single JSON channel at each rendered frame.
+    Captures enough data to fully replay or reconstruct the session:
+    env config, per-step action/reward, agent state, and full object states.
 
     Block.execute() calls initialize() → execute() → clean_up(), so the
     full lifecycle is managed externally by the Block.
@@ -41,7 +41,8 @@ class SARGameTrial(LSLTrial):
             victim_placer=victim_placer,
         )
         env.reset()
-        self.gui = SAREnvGUI(env, fullscreen=True)
+        self.gui = SAREnvGUI(env, fullscreen=False)
+        self.create_lsl_stream()
 
     def initialize(self) -> None:
         self.gui.reset()
@@ -53,24 +54,25 @@ class SARGameTrial(LSLTrial):
         return {
             "name": "SARGame",
             "type": "GameState",
-            "channel_count": len(_CHANNEL_NAMES),
-            "nominal_srate": 30.0,
-            "channel_format": "float32",
+            "channel_count": 1,
+            "nominal_srate": 0.0,
+            "channel_format": "string",
             "source_id": "rescue-grid-sar-game",
         }
 
-    def read_data(self) -> list[float] | None:
-        env = self.gui.user.env
-        return [
-            float(env.agent_pos[0]),
-            float(env.agent_pos[1]),
-            float(env.agent_dir),
-            float(env.step_count),
-            float(env.saved_victims),
-        ]
+    def read_data(self) -> list[str] | None:
+        user = self.gui.user
+        obs = user.obs
+        state = {
+            **(obs if isinstance(obs, dict) else {}),
+            "action": user.last_action,
+            "reward": user.last_reward,
+            "terminated": user.terminated,
+            "truncated": user.truncated,
+        }
+        return [ujson.dumps(state)]
 
     def execute(self) -> None:
-        self.create_lsl_stream()
 
         while self.gui.running:
             for event in pygame.event.get():

@@ -3,24 +3,13 @@ Simple Game Recorder - saves grid as numeric array + action sequence.
 """
 
 import pickle
-import numpy as np
-from pathlib import Path
-from datetime import datetime
 from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
 
+import numpy as np
 
-# Object type to integer mapping
-OBJ_TO_ID = {
-    None: 0,  # Empty
-    "Wall": 1,
-    "Door": 2,
-    "Key": 3,
-    "Lava": 4,
-    "Victim": 5,
-    "FakeVictim": 6,
-}
-
-ID_TO_OBJ = {v: k for k, v in OBJ_TO_ID.items()}
+from game.sar.observations import grid_to_array
 
 
 @dataclass
@@ -57,22 +46,11 @@ class GameRecorder:
         self.record_frames = record_frames
         self.recording = None
 
-    def _grid_to_array(self):
-        """Convert grid to numeric numpy array."""
-        arr = np.zeros((self.env.height, self.env.width), dtype=np.int8)
-        for y in range(self.env.height):
-            for x in range(self.env.width):
-                obj = self.env.grid.get(x, y)
-                if obj is not None:
-                    obj_type = type(obj).__name__
-                    arr[y, x] = OBJ_TO_ID.get(obj_type, 0)
-        return arr
-
     def start(self):
         """Start recording after env.reset()."""
         self.recording = GameRecording(
             timestamp=datetime.now().isoformat(),
-            grid=self._grid_to_array(),
+            grid=grid_to_array(self.env),
             config={
                 "room_size": self.env.room_size,
                 "num_rows": self.env.num_rows,
@@ -125,9 +103,10 @@ def print_grid(rec: GameRecording):
 
 # Example
 if __name__ == "__main__":
+    import random
+
     from game.sar.env import PickupVictimEnv
     from game.sar.utils import VictimPlacer
-    import random
 
     env = PickupVictimEnv(
         num_rows=2,
