@@ -1,8 +1,1 @@
- experiment.add_task(
-        name="practice",
-        task_cls=SARTutorial,
-        task_config={"config": []},
-        order=2,
-        instructions=["In this session you will complete a practice task to familiarize yourself with the interface and controls.",
-        ],
-    )
+""In this session you will complete the main task. In this game, you will control a human operator in a grid-based environment. Your goal is to move through the map, open doors, avoid hazards, and rescue victims as quickly and accurately as possible.

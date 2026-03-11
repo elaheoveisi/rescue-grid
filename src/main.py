@@ -60,7 +60,7 @@ with skip_run("skip", "tutorial") as check, check():
     gui.run()
 
 
-with skip_run('run', 'tobii') as check, check():
+with skip_run('skip', 'tobii') as check, check():
     tobii= TobiiEyeTracker()
     tobii.initialize()
     tobii.calibrate()
