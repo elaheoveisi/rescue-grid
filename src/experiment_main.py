@@ -46,7 +46,7 @@ experiment = Experiment(config)
 experiment.add_task(
     name="main_game",
     task_cls=SARGame,
-    task_config={"config": []},
+    task_config={"config": config["game"]},
     order=3,
     instructions=[
         "In this session you will complete the main task",

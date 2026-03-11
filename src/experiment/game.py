@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import Any
 
 import pygame
@@ -20,6 +21,12 @@ class SARGameTrial(LSLTrial):
 
     Block.execute() calls initialize() → execute() → clean_up(), so the
     full lifecycle is managed externally by the Block.
+
+    Parameters
+    ----------
+    parameters : dict
+        May include ``prompt_type`` ("sparse" | "detailed"),
+        ``model`` (e.g. "gpt-4o-mini"), and ``provider`` ("openai" | "gemini").
     """
 
     def __init__(self, trial_id: str, parameters: dict[str, Any]):
@@ -41,24 +48,20 @@ class SARGameTrial(LSLTrial):
             victim_placer=victim_placer,
         )
         env.reset()
-        self.gui = SAREnvGUI(env, fullscreen=False)
-        self.create_lsl_stream()
+        os.environ["SDL_VIDEO_FULLSCREEN_DISPLAY"] = str(parameters.get("display", 0))
+        self.gui = SAREnvGUI(
+            env,
+            fullscreen=parameters.get("fullscreen", False),
+            prompt_type=parameters.get("prompt_type", "detailed"),
+            model=parameters.get("model", "gpt-4o-mini"),
+            provider=parameters.get("provider", "openai"),
+        )
 
     def initialize(self) -> None:
         self.gui.reset()
 
     def clean_up(self) -> None:
         pygame.quit()
-
-    def get_data_signature(self) -> dict[str, Any]:
-        return {
-            "name": "SARGame",
-            "type": "GameState",
-            "channel_count": 1,
-            "nominal_srate": 0.0,
-            "channel_format": "string",
-            "source_id": "rescue-grid-sar-game",
-        }
 
     def read_data(self) -> list[str] | None:
         user = self.gui.user
@@ -69,6 +72,10 @@ class SARGameTrial(LSLTrial):
             "reward": user.last_reward,
             "terminated": user.terminated,
             "truncated": user.truncated,
+            "prompt_type": user.prompt_type,
+            "llm_model": user.model,
+            "llm_provider": user.provider,
+            "llm_response": user.last_llm_response,
         }
         return [ujson.dumps(state)]
 
@@ -90,19 +97,73 @@ class SARGameTrial(LSLTrial):
 class SARGame(Task):
     """SAR game task for the ixp experiment framework.
 
-    Wraps SARGameTrial in a Block so Experiment.add_task() / Experiment.run()
-    can manage the full trial lifecycle including LSL streaming verification.
+    One block with 4 trials (sparse×openai, detailed×openai, sparse×gemini,
+    detailed×gemini). Trial order is randomized at execution time.
     """
 
     def __init__(self, config: dict[str, Any]):
         super().__init__(config)
         block = Block("sar_game_block")
         block.add_trial(
-            SARGameTrial(trial_id="sar_game_trial", parameters=config or {}),
+            SARGameTrial(
+                "trial_sparse_openai",
+                {
+                    **config,
+                    "prompt_type": "sparse",
+                    "provider": "openai",
+                    "model": "gpt-4o-mini",
+                },
+            ),
             order=1,
+        )
+        block.add_trial(
+            SARGameTrial(
+                "trial_detailed_openai",
+                {
+                    **config,
+                    "prompt_type": "detailed",
+                    "provider": "openai",
+                    "model": "gpt-4o-mini",
+                },
+            ),
+            order=2,
+        )
+        block.add_trial(
+            SARGameTrial(
+                "trial_sparse_gemini",
+                {
+                    **config,
+                    "prompt_type": "sparse",
+                    "provider": "gemini",
+                    "model": "gemini-1.5-flash",
+                },
+            ),
+            order=3,
+        )
+        block.add_trial(
+            SARGameTrial(
+                "trial_detailed_gemini",
+                {
+                    **config,
+                    "prompt_type": "detailed",
+                    "provider": "gemini",
+                    "model": "gemini-1.5-flash",
+                },
+            ),
+            order=4,
         )
         self.add_block(block)
 
-    def execute(self, order: str = "predefined") -> list:
+    def get_data_signature(self) -> dict[str, Any]:
+        return {
+            "name": "SARGame",
+            "type": "GameState",
+            "channel_count": 1,
+            "nominal_srate": 0.0,
+            "channel_format": "string",
+            "source_id": "rescue-grid-sar-game",
+        }
+
+    def execute(self, order: str = "random") -> list:
         super().execute(order)
         return []

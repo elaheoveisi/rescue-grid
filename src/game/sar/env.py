@@ -206,6 +206,7 @@ class PickupVictimEnv(SARLevelGen):
         )
         self.max_steps = self.fixed_max_steps
         obs, info = super().reset(**kwargs)
+        self.instrs.reset_verifier(self)
         obs = self.observation.process_observation(obs, self)
         return obs, info
 

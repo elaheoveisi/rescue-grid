@@ -1,5 +1,3 @@
-from openai import OpenAI
-
 from game.sar.observations import (
     EMPTY,
     FAKE_VICTIM,
@@ -12,29 +10,30 @@ from game.sar.observations import (
     is_key,
 )
 
-DUMMY = True  # Set to False to use the real OpenAI API
-
-
-_client = None
-
 _DIR_NAMES = {0: "East", 1: "South", 2: "West", 3: "North"}
 _DIR_CHARS = {0: ">", 1: "v", 2: "<", 3: "^"}
 
-_SYSTEM_PROMPT = """\
-You are an AI assistant embedded in a Search and Rescue (SAR) simulation.
-The agent navigates a grid world to rescue victims. You can see the full map.
-
-Available actions: left, right, forward, pickup, drop, toggle (open/close doors), done.
+# --- Sparse prompt: LLM replies with one or two action words only ---
+SPARSE_SYSTEM_PROMPT = """\
+You are a navigator in a Search and Rescue simulation.
+Reply with ONLY the next action word(s) from: left, right, forward, pickup, drop, toggle, done.
+No explanation. No punctuation. Examples: "forward", "left forward", "toggle".
 
 Current game state:
 {game_state}"""
 
+# --- Detailed prompt: LLM replies with 1–2 sentence guidance ---
+DETAILED_SYSTEM_PROMPT = """\
+You are an AI assistant embedded in a Search and Rescue (SAR) simulation.
+The agent navigates a grid world to rescue victims. You can see the full map.
+Available actions: left, right, forward, pickup, drop, toggle (open/close doors), done.
+Respond with 1–2 sentences of clear, direct guidance. Mention the action and reason briefly.
 
-def _get_client():
-    global _client
-    if _client is None:
-        _client = OpenAI()
-    return _client
+Current game state:
+{game_state}"""
+
+# Default prompt (kept for backwards compatibility)
+SYSTEM_PROMPT = DETAILED_SYSTEM_PROMPT
 
 
 def _cell_symbol(cell: int) -> str:
@@ -108,6 +107,17 @@ def object_legend(obs: dict) -> str:
     return "\n".join(lines)
 
 
+
+def sparse_prompt(obs: dict) -> str:
+    """Build a sparse prompt — LLM should reply with action word(s) only."""
+    return SPARSE_SYSTEM_PROMPT.format(game_state=to_text(obs))
+
+
+def detailed_prompt(obs: dict) -> str:
+    """Build a detailed prompt — LLM should reply with 1–2 sentence guidance."""
+    return DETAILED_SYSTEM_PROMPT.format(game_state=to_text(obs))
+
+
 def to_text(obs: dict) -> str:
     """Format the enriched obs dict as a human-readable summary for the LLM."""
     carrying = obs["carrying"]
@@ -124,26 +134,3 @@ def to_text(obs: dict) -> str:
         f"{ascii_map(obs)}\n\n"
         f"{object_legend(obs)}"
     )
-
-
-def ask(obs, model: str = "gpt-4o-mini") -> str:
-    """Synchronously ask the LLM for advice given the current game observation."""
-    if DUMMY:
-        return "Game state received. Keep searching for victims and avoid lava!"
-
-    client = _get_client()
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {
-                "role": "system",
-                "content": _SYSTEM_PROMPT.format(game_state=to_text(obs)),
-            },
-            {
-                "role": "user",
-                "content": "What should I do next?",
-            },
-        ],
-        max_tokens=120,
-    )
-    return response.choices[0].message.content.strip()

@@ -1,13 +1,23 @@
 from minigrid.core.actions import Actions
 from minigrid.manual_control import ManualControl
 
-from .llm import ask, to_text
+from ..llm.client import ask
 
 
 class User(ManualControl):
-    def __init__(self, env):
+    def __init__(
+        self,
+        env,
+        prompt_type: str = "detailed",
+        model: str = "gpt-4o-mini",
+        provider: str = "openai",
+    ):
         self.env = env
         self.obs = None
+        self.prompt_type = prompt_type
+        self.model = model
+        self.provider = provider
+        self.last_llm_response: str | None = None
 
     def step(self, action: Actions):
         self.obs, reward, terminated, truncated, info = self.env.step(action)
@@ -15,9 +25,6 @@ class User(ManualControl):
         self.last_reward = float(reward)
         self.terminated = bool(terminated)
         self.truncated = bool(truncated)
-
-        print(to_text(self.obs))
-
         if terminated:
             print("terminated!")
             self.reset()
@@ -65,5 +72,10 @@ class User(ManualControl):
 
     def ask_llm(self) -> str:
         """Ask the LLM for advice based on the current game state."""
-
-        return ask(self.obs)
+        self.last_llm_response = ask(
+            self.obs,
+            prompt_type=self.prompt_type,
+            model=self.model,
+            provider=self.provider,
+        )
+        return self.last_llm_response
