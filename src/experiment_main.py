@@ -46,11 +46,6 @@ with skip_run('run', 'tobii') as check, check():
             "In this task, several **blackcircles** will appear on the screen. At the beginning of each trial, a small number of these circles will be highlighted as **targets**. After that, all circles will begin moving. Your job is to **keep track of the target circles while they move**. At the end of the trial, the circles will stop, and you will be asked to identify the original target circles. Please try to: - focus carefully on the highlighted target circles, keep track of them as they move, and respond as accurately as possible",
         ],
     )
-
-
-
-
-
     experiment.add_task(
         name="practice",
         task_cls=SARTutorial,
