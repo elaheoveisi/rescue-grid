@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from typing import Any
-
+import os
 import pygame
 from ixp.task import Task
 
@@ -17,6 +17,9 @@ class SARTutorial(Task):
 
     def __init__(self, config: dict[str, Any]):
         super().__init__(config)
+        self.gui: SAREnvGUI | None = None
+
+    def _build_gui(self) -> SAREnvGUI:
         screen_height = pygame.display.Info().current_h
 
         env = TutorialEnv(
@@ -28,12 +31,33 @@ class SARTutorial(Task):
         )
 
         env.reset()
-        self.gui = SAREnvGUI(env, fullscreen=True)
+        os.environ["SDL_VIDEO_FULLSCREEN_DISPLAY"] = str(
+            self.config.get("display", 0)
+        )
+        return SAREnvGUI(
+            env,
+            fullscreen=self.config.get("fullscreen", False),
+            prompt_type=self.config.get("prompt_type", "detailed"),
+            model=self.config.get("model", "gpt-4o-mini"),
+            provider=self.config.get("provider", "openai"),
+            display=self.config.get("display", 0),
+        )
+        
+    def initialize(self) -> None:
+        if self.gui is None:
+            self.gui = self._build_gui()
+        self.gui.reset()
+
+    def clean_up(self) -> None:
+        self.gui = None
+        pygame.quit()
 
     def execute(self, order: str = "predefined"):
+        self.initialize()
         try:
             results = []
-            self.gui.run()
+            if self.gui is not None:
+                self.gui.run()
             return results
         finally:
-            pass
+            self.clean_up()

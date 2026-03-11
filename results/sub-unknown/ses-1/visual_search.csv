@@ -1,0 +1,6 @@
+trial_id,response,correct_answer,correct,rt
+trial_0,timeout,up,False,3
+trial_1,timeout,left,False,3
+trial_2,timeout,down,False,3
+trial_3,timeout,down,False,3
+trial_4,timeout,left,False,3

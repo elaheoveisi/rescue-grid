@@ -1,0 +1,6 @@
+trial_id,num_targets,correct,accuracy
+trial_0,3,1,0.3333333333333333
+trial_1,3,1,0.3333333333333333
+trial_2,3,2,0.6666666666666666
+trial_3,3,3,1.0
+trial_4,3,3,1.0
