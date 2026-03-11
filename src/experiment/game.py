@@ -55,6 +55,7 @@ class SARGameTrial(LSLTrial):
             prompt_type=parameters.get("prompt_type", "detailed"),
             model=parameters.get("model", "gpt-4o-mini"),
             provider=parameters.get("provider", "openai"),
+            display=parameters.get("display", 0),
         )
 
     def initialize(self) -> None:
