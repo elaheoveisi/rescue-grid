@@ -10,11 +10,11 @@ pygame.init()
 
 
 class SAREnvGUI:
-    def __init__(self, env, fullscreen=False):
-        self.user = User(env)
+    def __init__(self, env, fullscreen=False, prompt_type="detailed", model="gpt-4o-mini", provider="openai"):
+        self.user = User(env, prompt_type=prompt_type, model=model, provider=provider)
         self.env_size = self.user.env.screen_size
 
-        self.panel_width = 375
+        self.panel_width = 500
         self.window_size = (self.env_size + self.panel_width, self.env_size)
 
         self.window = env.window
