@@ -6,8 +6,6 @@ from .chat import ChatPanel
 from .info import InfoPanel
 from .user import User
 
-from pygame._sdl2.video import Window
-
 pygame.init()
 
 
@@ -16,7 +14,7 @@ class SAREnvGUI:
         self.user = User(env)
         self.env_size = self.user.env.screen_size
 
-        self.panel_width = 375
+        self.panel_width = 500
         self.window_size = (self.env_size + self.panel_width, self.env_size)
 
         self.window = env.window

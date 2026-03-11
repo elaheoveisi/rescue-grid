@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 
 # Object type to integer mapping
 OBJ_TO_ID = {
-    None: 0,           # Empty
+    None: 0,  # Empty
     "Wall": 1,
     "Door": 2,
     "Key": 3,
@@ -26,6 +26,7 @@ ID_TO_OBJ = {v: k for k, v in OBJ_TO_ID.items()}
 @dataclass
 class GameRecording:
     """Minimal game recording."""
+
     timestamp: str = ""
 
     # Grid as numpy array (height x width) with object IDs
@@ -129,7 +130,8 @@ if __name__ == "__main__":
     import random
 
     env = PickupVictimEnv(
-        num_rows=2, num_cols=2,
+        num_rows=2,
+        num_cols=2,
         render_mode="rgb_array",
         victim_placer=VictimPlacer(num_fake_victims=3, num_real_victims=2),
     )

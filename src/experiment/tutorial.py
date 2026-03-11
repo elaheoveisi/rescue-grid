@@ -1,16 +1,13 @@
 # mot_task.py
 from __future__ import annotations
 
-
 from typing import Any
 
 import pygame
-
-from game.tutorial_env import TutorialEnv
-from game.gui.main import SAREnvGUI
-
 from ixp.task import Task
 
+from game.gui.main import SAREnvGUI
+from game.tutorial_env import TutorialEnv
 
 
 class SARTutorial(Task):
@@ -33,8 +30,7 @@ class SARTutorial(Task):
         env.reset()
         self.gui = SAREnvGUI(env, fullscreen=True)
 
-
-    def execute(self, order: str = 'predefined'):        
+    def execute(self, order: str = "predefined"):
         try:
             results = []
             self.gui.run()

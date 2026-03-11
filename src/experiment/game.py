@@ -1,26 +1,29 @@
-# mot_task.py
 from __future__ import annotations
-
 
 from typing import Any
 
 import pygame
+from ixp.task import Block, LSLTrial, Task
 
 from game.gui.main import SAREnvGUI
 from game.sar.env import PickupVictimEnv
 from game.sar.utils import VictimPlacer
 
-from ixp.task import Task
+_CHANNEL_NAMES = ["agent_x", "agent_y", "agent_dir", "step_count", "saved_victims"]
 
 
+class SARGameTrial(LSLTrial):
+    """LSL-streaming trial for the SAR rescue game.
 
-class SARGame(Task):
+    Streams five game-state channels at each rendered frame (~30 Hz):
+    agent_x, agent_y, agent_dir, step_count, saved_victims.
+
+    Block.execute() calls initialize() → execute() → clean_up(), so the
+    full lifecycle is managed externally by the Block.
     """
-    Sustained Attention to Response Task tutorial containing a block of SARTTrials.
-    """
 
-    def __init__(self, config: dict[str, Any]):
-        super().__init__(config)
+    def __init__(self, trial_id: str, parameters: dict[str, Any]):
+        super().__init__(trial_id, parameters)
         screen_height = pygame.display.Info().current_h
         victim_placer = VictimPlacer(
             num_fake_victims=5, num_real_victims=3, important_victim="down"
@@ -34,19 +37,70 @@ class SARGame(Task):
             add_lava=True,
             lava_per_room=2,
             locked_room_prob=0.5,
-            # camera_strategy=FullviewCamera(),
             tile_size=64,
             victim_placer=victim_placer,
         )
         env.reset()
-        self.gui = SAREnvGUI(env, fullscreen=False)
-        
+        self.gui = SAREnvGUI(env, fullscreen=True)
+
+    def initialize(self) -> None:
+        self.gui.reset()
+
+    def clean_up(self) -> None:
+        pygame.quit()
+
+    def get_data_signature(self) -> dict[str, Any]:
+        return {
+            "name": "SARGame",
+            "type": "GameState",
+            "channel_count": len(_CHANNEL_NAMES),
+            "nominal_srate": 30.0,
+            "channel_format": "float32",
+            "source_id": "rescue-grid-sar-game",
+        }
+
+    def read_data(self) -> list[float] | None:
+        env = self.gui.user.env
+        return [
+            float(env.agent_pos[0]),
+            float(env.agent_pos[1]),
+            float(env.agent_dir),
+            float(env.step_count),
+            float(env.saved_victims),
+        ]
+
+    def execute(self) -> None:
+        self.create_lsl_stream()
+
+        while self.gui.running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.gui.close()
+                    break
+                self.gui.manager.process_events(event)
+                self.gui.handle_user_input(event)
+
+            if self.gui.running:
+                self.gui.render(self.gui.user.get_frame())
+                self.stream()
 
 
-    def execute(self, order: str = 'predefined'):        
-        try:
-            results = []
-            self.gui.run()
-            return results
-        finally:
-            pass
+class SARGame(Task):
+    """SAR game task for the ixp experiment framework.
+
+    Wraps SARGameTrial in a Block so Experiment.add_task() / Experiment.run()
+    can manage the full trial lifecycle including LSL streaming verification.
+    """
+
+    def __init__(self, config: dict[str, Any]):
+        super().__init__(config)
+        block = Block("sar_game_block")
+        block.add_trial(
+            SARGameTrial(trial_id="sar_game_trial", parameters=config or {}),
+            order=1,
+        )
+        self.add_block(block)
+
+    def execute(self, order: str = "predefined") -> list:
+        super().execute(order)
+        return []
