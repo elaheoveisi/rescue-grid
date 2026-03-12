@@ -8,7 +8,6 @@ shared:
     1. Priority 1: Locate and retrieve as many real victims as possible.
     2. Priority 2: Clear obstacles (Open/Unlock Doors). Avoid Lava.
     2. Rule: You can carry ONLY one 'key' at a time. If holding a key, you must 'drop' it to 'pickup' another 'key'.
-    3. Rule: No "Move Back" action exists.
 
     DO NOT:
     1. Use coordinates or numbers in your response (e.g. do NOT say "go to key at (4,5)" or "3 steps North")

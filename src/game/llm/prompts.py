@@ -11,21 +11,21 @@ from game.sar.observations import (
     is_key,
 )
 
-_DIR_NAMES  = {0: "East", 1: "South", 2: "West", 3: "North"}
-_DIR_CHARS  = {0: ">",    1: "v",     2: "<",    3: "^"}
+_DIR_NAMES = {0: "East", 1: "South", 2: "West", 3: "North"}
+_DIR_CHARS = {0: ">", 1: "v", 2: "<", 3: "^"}
 # (ahead_dx, ahead_dy, left_dx, left_dy) per facing direction
 _DIR_VECTORS = {
-    0: ( 1,  0,  0, -1),  # East
-    1: ( 0,  1,  1,  0),  # South
-    2: (-1,  0,  0,  1),  # West
-    3: ( 0, -1, -1,  0),  # North
+    0: (1, 0, 0, -1),  # East
+    1: (0, 1, 1, 0),  # South
+    2: (-1, 0, 0, 1),  # West
+    3: (0, -1, -1, 0),  # North
 }
 # (ahead, behind, left, right) compass names per facing direction
 _DIR_SIDE_NAMES = {
-    0: ("East",  "West",  "North", "South"),
-    1: ("South", "North", "East",  "West"),
-    2: ("West",  "East",  "South", "North"),
-    3: ("North", "South", "West",  "East"),
+    0: ("East", "West", "North", "South"),
+    1: ("South", "North", "East", "West"),
+    2: ("West", "East", "South", "North"),
+    3: ("North", "South", "West", "East"),
 }
 _CELL_SYMBOLS = {0: ".", LAVA: "~", VICTIM: "V", FAKE_VICTIM: "F"}
 
@@ -147,27 +147,67 @@ def _render(obs: dict) -> tuple[str, str, str]:
     return local_view, full_map, "\n".join(legend_lines)
 
 
+def _to_relative_narrative(ax, ay, adir, ox, oy):
+    """Translates global (ox, oy) to relative 'ahead/behind/left/right' for the LLM."""
+    dx, dy = ox - ax, oy - ay
+
+    # Rotate delta based on agent direction: 0:E, 1:S, 2:W, 3:N
+    if adir == 0:  # East
+        fwd, right = dx, dy
+    elif adir == 1:  # South
+        fwd, right = dy, -dx
+    elif adir == 2:  # West
+        fwd, right = -dx, -dy
+    else:  # North
+        fwd, right = -dy, dx
+
+    parts = []
+    if fwd > 0:
+        parts.append("ahead")
+    elif fwd < 0:
+        parts.append("behind")
+
+    if right > 0:
+        parts.append("to the right")
+    elif right < 0:
+        parts.append("to the left")
+
+    return " and ".join(parts) if parts else "at your position"
+
+
 def to_semantic(obs: dict) -> str:
-    """Semantic string encoding: narrative description, no ASCII grids."""
+    """Narrative encoding: Includes walls and relative directions."""
     ax, ay = obs["agent_x"], obs["agent_y"]
+    adir = obs["agent_dir"]
     grid = obs["grid"]
     x0, y0, x1, y1 = _cam_bounds(obs)
     carrying = obs["carrying"]
 
     in_fov, off_screen = [], []
+    # Track wall directions to avoid listing every single wall tile
+    wall_dirs = set()
+
     for y, row in enumerate(grid):
         for x, cell in enumerate(row):
             cell = int(cell)
-            if cell <= 1:
+            if cell == 0:
+                continue  # Skip empty floor
+
+            rel = _to_relative_narrative(ax, ay, adir, x, y)
+            is_in_view = x0 <= x < x1 and y0 <= y < y1
+            target = in_fov if is_in_view else off_screen
+
+            if cell == 1:  # Wall
+                if is_in_view:
+                    wall_dirs.add(rel)
                 continue
-            rel = _rel_pos(ax, ay, x, y)
-            target = in_fov if (x0 <= x < x1 and y0 <= y < y1) else off_screen
+
             if cell == LAVA:
-                target.append(f"lava at {rel}")
+                target.append(f"lava {rel}")
             elif cell == VICTIM:
-                target.append(f"victim at {rel}")
+                target.append(f"victim {rel}")
             elif cell == FAKE_VICTIM:
-                target.append(f"fake victim at {rel}")
+                target.append(f"fake victim {rel}")
             elif is_door(cell):
                 d = decode_door(cell)
                 state = (
@@ -175,48 +215,49 @@ def to_semantic(obs: dict) -> str:
                     if d["is_open"]
                     else ("locked" if d["is_locked"] else "closed")
                 )
-                target.append(f"{d['color']} door [{state}] at {rel}")
+                target.append(f"{d['color']} door [{state}] {rel}")
             elif is_key(cell):
-                target.append(f"{decode_key(cell)['color']} key at {rel}")
+                target.append(f"{decode_key(cell)['color']} key {rel}")
 
-    # Immediate surroundings (walls matter for movement)
-    adx, ady, ldx, ldy = _DIR_VECTORS[obs["agent_dir"]]
-    ahead_n, behind_n, left_n, right_n = _DIR_SIDE_NAMES[obs["agent_dir"]]
-    rows, cols = len(grid), len(grid[0]) if grid else 0
+    # Add summarized wall info to FOV
+    if wall_dirs:
+        in_fov.append(f"walls to your {', '.join(wall_dirs)}")
+
+    # Immediate surroundings (1 step away)
+    adx, ady, ldx, ldy = _DIR_VECTORS[adir]
 
     def _neighbor(dx, dy) -> str:
         nx, ny = ax + dx, ay + dy
-        if not (0 <= nx < cols and 0 <= ny < rows):
+        if not (0 <= nx < len(grid[0]) and 0 <= ny < len(grid)):
             return "out of bounds"
         cell = int(grid[ny][nx])
-        if cell == 0:   return "empty"
-        if cell == 1:   return "wall"
-        if cell == LAVA:      return "lava"
-        if cell == VICTIM:    return "victim"
-        if cell == FAKE_VICTIM: return "fake victim"
+        if cell == 0:
+            return "empty"
+        if cell == 1:
+            return "wall"
+        if cell == LAVA:
+            return "lava"
+        if cell == VICTIM:
+            return "victim"
         if is_door(cell):
-            d = decode_door(cell)
-            state = "open" if d["is_open"] else ("locked" if d["is_locked"] else "closed")
-            return f"{d['color']} door [{state}]"
-        if is_key(cell):
-            return f"{decode_key(cell)['color']} key"
-        return "unknown"
+            return "door"
+        return "object"
 
     surroundings = (
-        f"  Ahead ({ahead_n}): {_neighbor(adx, ady)}\n"
-        f"  Left  ({left_n}): {_neighbor(ldx, ldy)}\n"
-        f"  Right ({right_n}): {_neighbor(-ldx, -ldy)}\n"
-        f"  Behind ({behind_n}): {_neighbor(-adx, -ady)}"
+        f"  Ahead: {_neighbor(adx, ady)}\n"
+        f"  Left:  {_neighbor(ldx, ldy)}\n"
+        f"  Right: {_neighbor(-ldx, -ldy)}\n"
+        f"  Behind: {_neighbor(-adx, -ady)}"
     )
 
     return (
-        f"Position: ({ax},{ay}), facing {_DIR_NAMES.get(obs['agent_dir'], '?')}."
-        f" Carrying: {carrying.capitalize() + ' Key' if carrying else 'nothing'}.\n"
-        f"Rescued: {obs['saved_victims']}, Remaining: {obs['remaining_victims']},"
-        f" Steps: {obs['step_count']}/{obs['max_steps']}.\n\n"
-        f"Immediate surroundings:\n{surroundings}\n\n"
-        f"In camera view: {', '.join(in_fov) if in_fov else 'nothing notable'}\n"
-        f"Off-screen objects: {', '.join(off_screen) if off_screen else 'none'}"
+        f"AGENT STATUS:\n"
+        f"- Facing: {_DIR_NAMES.get(adir, '?')}\n"
+        f"- Inventory: {carrying.capitalize() + ' Key' if carrying else 'Empty'}\n"
+        f"- Mission: {obs['saved_victims']} rescued, {obs['remaining_victims']} remaining.\n\n"
+        f"IMMEDIATE SURROUNDINGS:\n{surroundings}\n\n"
+        f"VISIBLE IN FOV (In camera view):\n- {', '.join(in_fov) if in_fov else 'Nothing actionable visible'}\n\n"
+        f"OFF-SCREEN OBJECTS (Memory):\n- {', '.join(off_screen) if off_screen else 'None'}"
     )
 
 
