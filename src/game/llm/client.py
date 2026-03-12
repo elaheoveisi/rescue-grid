@@ -1,6 +1,6 @@
 from llama_index.core.llms import ChatMessage, MessageRole
 
-from .prompts import detailed_prompt, sparse_prompt
+from .prompts import build_prompt
 
 llm_cache: dict = {}
 
@@ -38,10 +38,10 @@ def ask(
         provider: "openai" or "gemini".
     """
 
-    prompt_fn = sparse_prompt if prompt_type == "sparse" else detailed_prompt
     llm = get_llm(model, provider)
+    print(build_prompt(obs, prompt_type))
     messages = [
-        ChatMessage(role=MessageRole.SYSTEM, content=prompt_fn(obs)),
+        ChatMessage(role=MessageRole.SYSTEM, content=build_prompt(obs, prompt_type)),
         ChatMessage(role=MessageRole.USER, content="What should I do next?"),
     ]
     response = llm.chat(messages)

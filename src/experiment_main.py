@@ -3,12 +3,11 @@ from pathlib import Path
 import ray
 import yaml
 from dotenv import load_dotenv
+from experiment.game import SARGame
 from ixp.experiment import Experiment
 from ixp.sensors.eye_tracker.tobii import TobiiEyeTracker
 from ixp.surveys.nasa_tlx import NasaTLX
 from ixp.surveys.sart import SART
-
-from experiment.game import SARGame
 from utils import skip_run
 
 load_dotenv()

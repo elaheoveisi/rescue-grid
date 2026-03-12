@@ -39,13 +39,12 @@ class ChatPanel:
         )
 
     def add_message(self, sender, text, color="#DCDCDC"):
-        """Append a message. color is a hex string, e.g. '#32CD32'."""
-        fragment = f"<font color='{color}'><b>{sender}:</b> {text}</font>"
-        self.messages.append(fragment)
+        """Replace current message with the latest one."""
+        self.messages = [f"<font color='{color}'><b>{sender}:</b> {text}</font>"]
         self._refresh()
 
     def _refresh(self):
-        self.text_box.set_text("<br>".join(self.messages))
+        self.text_box.set_text(self.messages[0] if self.messages else "")
 
     def clear_messages(self):
         """Clear all messages from the chat."""

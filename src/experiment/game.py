@@ -5,11 +5,10 @@ from typing import Any
 
 import pygame
 import ujson
-from ixp.task import Block, LSLTrial, Task
-
 from game.gui.main import SAREnvGUI
 from game.sar.env import PickupVictimEnv
 from game.sar.utils import VictimPlacer
+from ixp.task import Block, LSLTrial, Task
 
 
 class SARGameTrial(LSLTrial):

@@ -1,10 +1,11 @@
-display: &display 0
+display: &display 1
 fullscreen: &fullscreen true
 
 game:
   display: *display
   fullscreen: *fullscreen
   min_steps: 10
+  prompt_type: 'semantic'
   openai_model: gpt-4o-mini
   gemini_model: gemini-2.5-flash-lite
 

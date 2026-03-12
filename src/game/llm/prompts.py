@@ -1,96 +1,40 @@
+from pathlib import Path
+
+import yaml
 from game.sar.observations import (
-    EMPTY,
     FAKE_VICTIM,
     LAVA,
     VICTIM,
-    WALL,
     decode_door,
     decode_key,
     is_door,
     is_key,
 )
 
-_DIR_NAMES = {0: "East", 1: "South", 2: "West", 3: "North"}
-_DIR_CHARS = {0: ">", 1: "v", 2: "<", 3: "^"}
-
-
-# --- Sparse prompt: LLM replies with one or two action words only ---
-SPARSE_SYSTEM_PROMPT = """\
-You are the Tactical Lead for a Search and Rescue (SAR) operation.
-You have access to game state given below. Study the map in detail, understand other info, and issue a command to help the user complete the mission.
-
-TREE OF THOUGHT REASONING:
-1. Inventory Check: Confirm the agent is not already carrying a key before a 'pickup' for next 'key'.
-2. Path Planning: Account for the fact that the agent cannot move backward; it must turn to change direction.
-3. Prioritization: Determine if a victim can be reached directly or if a door must be unlocked first.
-
-EXAMPLE COMMAND GRAMMAR:
-- "pick up the [color] [key"
-- "drop the [color] [key]"
-- "open the [color] door"
-- "pick up [victim] in the room towards left"
-
-SAR OBJECTIVES and RULES:
-1. Priority 1: Locate and retrieve as many real victimes as possible.
-2. Priority 2: Clear obstacles (Open/Unlock Doors). Avoid Lava.
-2. Rule: You can carry ONLY one 'key' at a time. If holding a key, you must 'drop' it to 'pickup' another 'key'.
-3. Rule: No "Move Back" action exists.
-
-DO NOT:
-1. Use numbers like "go to key at (4, 5)" or "pick up victim at (4, 5)"
-
-OUTPUT:
-Reply with ONLY the mission string. Do NOT use numbers, bullet points, or punctuation.
-Example: drop the blue key or pick up the victim
-
-Current game state:
-{game_state}"""
-
-# --- Detailed prompt: LLM replies with 1–2 sentence guidance ---
-DETAILED_SYSTEM_PROMPT = """\
-You are the Tactical Lead for a Search and Rescue (SAR) operation.
-You have access to game state given below. Study the map in detail, understand other info, and issue a command to help the user complete the mission.
-
-TREE OF THOUGHT REASONING:
-1. Analyze the agent's current position, orientation, and inventory.
-2. Compare 2-3 possible next steps (e.g., "Find the key" vs. "Explore the below room").
-3. Evaluate which step maximizes victim safety and minimizes total moves.
-
-EXAMPLE COMMAND GRAMMAR:
-- Forward, Left, Right, Pickup, Drop, Toggle (for doors).
-
-SAR OBJECTIVES and RULES:
-1. Priority 1: Locate and retrieve as many real victimes as possible.
-2. Priority 2: Clear obstacles (Open/Unlock Doors). Avoid Lava.
-2. Rule: You can carry ONLY one 'key' at a time. If holding a key, you must 'drop' it to 'pickup' another 'key'.
-3. Rule: No "Move Back" action exists.
-
-DO NOT:
-1. Use numbers like "go to key at (4, 5)" or "pick up victim at (4, 5)"
-
-OUTPUT:
-Provide 1–2 sentences of guidance. Reply with ONLY the mission message. Do NOT use numbers.
-Structure: [Action Verb] -> [Target Object] -> [Reason].
-Example: "Turn left and move forward to reach the blue key; you need it to unlock the room where the victim is trapped."
-
-Current game state:
-{game_state}"""
-
-# Default prompt (kept for backwards compatibility)
-SYSTEM_PROMPT = DETAILED_SYSTEM_PROMPT
+_DIR_NAMES  = {0: "East", 1: "South", 2: "West", 3: "North"}
+_DIR_CHARS  = {0: ">",    1: "v",     2: "<",    3: "^"}
+# (ahead_dx, ahead_dy, left_dx, left_dy) per facing direction
+_DIR_VECTORS = {
+    0: ( 1,  0,  0, -1),  # East
+    1: ( 0,  1,  1,  0),  # South
+    2: (-1,  0,  0,  1),  # West
+    3: ( 0, -1, -1,  0),  # North
+}
+# (ahead, behind, left, right) compass names per facing direction
+_DIR_SIDE_NAMES = {
+    0: ("East",  "West",  "North", "South"),
+    1: ("South", "North", "East",  "West"),
+    2: ("West",  "East",  "South", "North"),
+    3: ("North", "South", "West",  "East"),
+}
+_CELL_SYMBOLS = {0: ".", LAVA: "~", VICTIM: "V", FAKE_VICTIM: "F"}
 
 
 def _cell_symbol(cell: int) -> str:
-    if cell == EMPTY:
-        return "."
-    if cell == WALL:
+    if cell in _CELL_SYMBOLS:
+        return _CELL_SYMBOLS[cell]
+    if cell == 1:
         return "#"
-    if cell == LAVA:
-        return "~"
-    if cell == VICTIM:
-        return "V"
-    if cell == FAKE_VICTIM:
-        return "F"
     if is_door(cell):
         return "D"
     if is_key(cell):
@@ -98,31 +42,85 @@ def _cell_symbol(cell: int) -> str:
     return "?"
 
 
-def ascii_map(obs: dict) -> str:
-    """Render ASCII map with agent direction arrow."""
+def _load_prompts() -> dict:
+    path = Path(__file__).parent / "prompts.yaml"
+    with open(path) as f:
+        return yaml.safe_load(f)
+
+
+def _compose(shared: dict, reasoning: str, output: str) -> str:
+    parts = [
+        shared["preamble"].rstrip(),
+        reasoning.rstrip(),
+        shared["objectives"].rstrip(),
+        output.rstrip(),
+        shared["footer"].rstrip(),
+    ]
+    return "\n\n".join(parts)
+
+
+_cfg = _load_prompts()
+_shared = _cfg["shared"]
+_PROMPT_TEMPLATES: dict[str, str] = {
+    name: _compose(_shared, spec["reasoning"], spec["output"])
+    for name, spec in _cfg["prompts"].items()
+}
+
+
+def _cam_bounds(obs: dict):
+    """Return (x0, y0, x1, y1) of the camera view, falling back to half=6."""
+    if "cam_top_x" in obs:
+        x0 = obs["cam_top_x"]
+        y0 = obs["cam_top_y"]
+        return x0, y0, x0 + obs["cam_view_w"], y0 + obs["cam_view_h"]
+    half = 6
     ax, ay = obs["agent_x"], obs["agent_y"]
-    agent_char = _DIR_CHARS.get(obs["agent_dir"], "A")
-    lines = []
-    for y, row in enumerate(obs["grid"]):
-        row_str = ""
-        for x, cell in enumerate(row):
-            row_str += agent_char if (x == ax and y == ay) else _cell_symbol(int(cell))
-        lines.append(row_str)
-    return "\n".join(lines)
+    return ax - half, ay - half, ax + half + 1, ay + half + 1
 
 
-def object_legend(obs: dict) -> str:
-    """List all doors, keys, victims, and lava with full color/state detail."""
+def _rel_pos(ax: int, ay: int, ox: int, oy: int) -> str:
+    """Compass offset of (ox, oy) from agent at (ax, ay)."""
+    dx, dy = ox - ax, oy - ay
+    parts = []
+    if dy < 0:
+        parts.append(f"{-dy}N")
+    elif dy > 0:
+        parts.append(f"{dy}S")
+    if dx > 0:
+        parts.append(f"{dx}E")
+    elif dx < 0:
+        parts.append(f"{-dx}W")
+    return "".join(parts) if parts else "here"
+
+
+def _render(obs: dict) -> tuple[str, str, str]:
+    """Convert int grid → symbol grid, slice for local view, scan for legend."""
+    ax, ay = obs["agent_x"], obs["agent_y"]
+    grid = obs["grid"]
+    x0, y0, x1, y1 = _cam_bounds(obs)
+
+    # Symbol grid: comprehension over int grid, then stamp agent position
+    syms = [[_cell_symbol(int(c)) for c in row] for row in grid]
+    syms[ay][ax] = _DIR_CHARS.get(obs["agent_dir"], "A")
+
+    # Both maps are slices/joins of the same array — no extra grid scan
+    full_map = "\n".join("".join(row) for row in syms)
+    local_view = "\n".join("".join(row[x0:x1]) for row in syms[y0:y1])
+
+    # Legend: scan int grid, skip trivial cells (empty=0, wall=1)
     victims, fakes, lavas, doors, keys = [], [], [], [], []
-    for y, row in enumerate(obs["grid"]):
+    for y, row in enumerate(grid):
         for x, cell in enumerate(row):
             cell = int(cell)
+            if cell <= 1:
+                continue
+            rel = _rel_pos(ax, ay, x, y)
             if cell == LAVA:
-                lavas.append(f"({x},{y})")
+                lavas.append(rel)
             elif cell == VICTIM:
-                victims.append(f"({x},{y})")
+                victims.append(rel)
             elif cell == FAKE_VICTIM:
-                fakes.append(f"({x},{y})")
+                fakes.append(rel)
             elif is_door(cell):
                 d = decode_door(cell)
                 state = (
@@ -130,50 +128,120 @@ def object_legend(obs: dict) -> str:
                     if d["is_open"]
                     else ("locked" if d["is_locked"] else "closed")
                 )
-                doors.append(f"  D at ({x},{y}) = {d['color']} [{state}]")
+                doors.append(f"  {d['color']} door [{state}]: {rel}")
             elif is_key(cell):
-                k = decode_key(cell)
-                keys.append(f"  K at ({x},{y}) = {k['color']} key")
+                keys.append(f"  {decode_key(cell)['color']} key: {rel}")
 
-    lines = []
+    legend_lines = []
     if doors:
-        lines.append("Doors:")
-        lines.extend(doors)
+        legend_lines += ["Doors:"] + doors
     if keys:
-        lines.append("Keys:")
-        lines.extend(keys)
+        legend_lines += ["Keys:"] + keys
     if victims:
-        lines.append("Victims at: " + ", ".join(victims))
+        legend_lines.append("Victims: " + ", ".join(victims))
     if fakes:
-        lines.append("Fake victims at: " + ", ".join(fakes))
+        legend_lines.append("Fake victims: " + ", ".join(fakes))
     if lavas:
-        lines.append("Lava at: " + ", ".join(lavas))
-    return "\n".join(lines)
+        legend_lines.append("Lava: " + ", ".join(lavas))
+
+    return local_view, full_map, "\n".join(legend_lines)
 
 
-def sparse_prompt(obs: dict) -> str:
-    """Build a sparse prompt — LLM should reply with action word(s) only."""
-    return SPARSE_SYSTEM_PROMPT.format(game_state=to_text(obs))
+def to_semantic(obs: dict) -> str:
+    """Semantic string encoding: narrative description, no ASCII grids."""
+    ax, ay = obs["agent_x"], obs["agent_y"]
+    grid = obs["grid"]
+    x0, y0, x1, y1 = _cam_bounds(obs)
+    carrying = obs["carrying"]
 
+    in_fov, off_screen = [], []
+    for y, row in enumerate(grid):
+        for x, cell in enumerate(row):
+            cell = int(cell)
+            if cell <= 1:
+                continue
+            rel = _rel_pos(ax, ay, x, y)
+            target = in_fov if (x0 <= x < x1 and y0 <= y < y1) else off_screen
+            if cell == LAVA:
+                target.append(f"lava at {rel}")
+            elif cell == VICTIM:
+                target.append(f"victim at {rel}")
+            elif cell == FAKE_VICTIM:
+                target.append(f"fake victim at {rel}")
+            elif is_door(cell):
+                d = decode_door(cell)
+                state = (
+                    "open"
+                    if d["is_open"]
+                    else ("locked" if d["is_locked"] else "closed")
+                )
+                target.append(f"{d['color']} door [{state}] at {rel}")
+            elif is_key(cell):
+                target.append(f"{decode_key(cell)['color']} key at {rel}")
 
-def detailed_prompt(obs: dict) -> str:
-    """Build a detailed prompt — LLM should reply with 1–2 sentence guidance."""
-    return DETAILED_SYSTEM_PROMPT.format(game_state=to_text(obs))
+    # Immediate surroundings (walls matter for movement)
+    adx, ady, ldx, ldy = _DIR_VECTORS[obs["agent_dir"]]
+    ahead_n, behind_n, left_n, right_n = _DIR_SIDE_NAMES[obs["agent_dir"]]
+    rows, cols = len(grid), len(grid[0]) if grid else 0
+
+    def _neighbor(dx, dy) -> str:
+        nx, ny = ax + dx, ay + dy
+        if not (0 <= nx < cols and 0 <= ny < rows):
+            return "out of bounds"
+        cell = int(grid[ny][nx])
+        if cell == 0:   return "empty"
+        if cell == 1:   return "wall"
+        if cell == LAVA:      return "lava"
+        if cell == VICTIM:    return "victim"
+        if cell == FAKE_VICTIM: return "fake victim"
+        if is_door(cell):
+            d = decode_door(cell)
+            state = "open" if d["is_open"] else ("locked" if d["is_locked"] else "closed")
+            return f"{d['color']} door [{state}]"
+        if is_key(cell):
+            return f"{decode_key(cell)['color']} key"
+        return "unknown"
+
+    surroundings = (
+        f"  Ahead ({ahead_n}): {_neighbor(adx, ady)}\n"
+        f"  Left  ({left_n}): {_neighbor(ldx, ldy)}\n"
+        f"  Right ({right_n}): {_neighbor(-ldx, -ldy)}\n"
+        f"  Behind ({behind_n}): {_neighbor(-adx, -ady)}"
+    )
+
+    return (
+        f"Position: ({ax},{ay}), facing {_DIR_NAMES.get(obs['agent_dir'], '?')}."
+        f" Carrying: {carrying.capitalize() + ' Key' if carrying else 'nothing'}.\n"
+        f"Rescued: {obs['saved_victims']}, Remaining: {obs['remaining_victims']},"
+        f" Steps: {obs['step_count']}/{obs['max_steps']}.\n\n"
+        f"Immediate surroundings:\n{surroundings}\n\n"
+        f"In camera view: {', '.join(in_fov) if in_fov else 'nothing notable'}\n"
+        f"Off-screen objects: {', '.join(off_screen) if off_screen else 'none'}"
+    )
 
 
 def to_text(obs: dict) -> str:
     """Format the enriched obs dict as a human-readable summary for the LLM."""
     carrying = obs["carrying"]
-    inventory = f"{carrying.capitalize()} Key" if carrying else "None"
-    dir_name = _DIR_NAMES.get(obs["agent_dir"], "Unknown")
+    agent_char = _DIR_CHARS.get(obs["agent_dir"], "A")
+    local_view, full_map, legend = _render(obs)
     return (
         f"Mission status: {obs['mission_status']}\n"
         f"Victims rescued: {obs['saved_victims']}\n"
         f"Victims remaining: {obs['remaining_victims']}\n"
         f"Steps taken: {obs['step_count']} / {obs['max_steps']}\n"
-        f"Inventory: {inventory}\n"
-        f"Agent at ({obs['agent_x']},{obs['agent_y']}) facing {dir_name}\n\n"
-        f"Map (. empty  # wall  ~ lava  D door  K key  V victim  F fake  > v < ^ agent):\n"
-        f"{ascii_map(obs)}\n\n"
-        f"{object_legend(obs)}"
+        f"Inventory: {carrying.capitalize() + ' Key' if carrying else 'None'}\n"
+        f"Agent at ({obs['agent_x']},{obs['agent_y']}) facing {_DIR_NAMES.get(obs['agent_dir'], 'Unknown')}\n\n"
+        f"Agent's local view (north=top, agent={agent_char} at center):\n"
+        f"{local_view}\n\n"
+        f"Full map (. empty  # wall  ~ lava  D door  K key  V victim  F fake  > v < ^ agent):\n"
+        f"{full_map}\n\n"
+        # f"{legend}"
     )
+
+
+def build_prompt(obs: dict, prompt_type: str = "semantic") -> str:
+    """Build a complete LLM system prompt for the given obs and prompt type."""
+    template = _PROMPT_TEMPLATES.get(prompt_type, _PROMPT_TEMPLATES["detailed"])
+    game_state = to_semantic(obs)
+    return template.format(game_state=game_state)

@@ -115,11 +115,13 @@ class GameObservation:
 
         obs["image"] = obs["image"].tolist()
         obs["direction"] = int(obs["direction"])
+        ax = int(env.agent_pos[0])
+        ay = int(env.agent_pos[1])
         obs.update(
             {
                 "grid": grid,
-                "agent_x": int(env.agent_pos[0]),
-                "agent_y": int(env.agent_pos[1]),
+                "agent_x": ax,
+                "agent_y": ay,
                 "agent_dir": int(env.agent_dir),
                 "carrying": carrying.color if carrying else None,
                 "step_count": int(env.step_count),
@@ -132,4 +134,19 @@ class GameObservation:
                 "room_size": int(env.room_size),
             }
         )
+
+        # Camera bounds: update EdgeFollowCamera state and store view region in obs
+        cam = getattr(env, "camera", None)
+        if cam is not None and hasattr(cam, "_update_position"):
+            cam._update_position(ax, ay, env.width, env.height)
+            view_w, view_h = cam.config.view_tiles
+            obs.update(
+                {
+                    "cam_top_x": cam.top_x,
+                    "cam_top_y": cam.top_y,
+                    "cam_view_w": view_w,
+                    "cam_view_h": view_h,
+                }
+            )
+
         return obs
