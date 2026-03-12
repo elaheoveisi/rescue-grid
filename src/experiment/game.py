@@ -102,8 +102,6 @@ class SARGameTrial(LSLTrial):
                         self.gui.close()
                     break
                 self.gui.manager.process_events(event)
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE and not enough:
-                    continue
                 self.gui.handle_user_input(event)
 
             if self.gui.running:
@@ -120,6 +118,8 @@ class SARGame(Task):
 
     def __init__(self, config: dict[str, Any]):
         super().__init__(config)
+        openai_model = config.get("openai_model", "gpt-4o-mini")
+        gemini_model = config.get("gemini_model", "gemini-1.5-flash")
         block = Block("sar_game_block")
         block.add_trial(
             SARGameTrial(
@@ -128,7 +128,7 @@ class SARGame(Task):
                     **config,
                     "prompt_type": "sparse",
                     "provider": "openai",
-                    "model": "gpt-4o-mini",
+                    "model": openai_model,
                 },
             ),
             order=1,
@@ -140,7 +140,7 @@ class SARGame(Task):
                     **config,
                     "prompt_type": "detailed",
                     "provider": "openai",
-                    "model": "gpt-4o-mini",
+                    "model": openai_model,
                 },
             ),
             order=2,
@@ -152,7 +152,7 @@ class SARGame(Task):
                     **config,
                     "prompt_type": "sparse",
                     "provider": "gemini",
-                    "model": "gemini-1.5-flash",
+                    "model": gemini_model,
                 },
             ),
             order=3,
@@ -164,7 +164,7 @@ class SARGame(Task):
                     **config,
                     "prompt_type": "detailed",
                     "provider": "gemini",
-                    "model": "gemini-1.5-flash",
+                    "model": gemini_model,
                 },
             ),
             order=4,

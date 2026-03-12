@@ -13,21 +13,65 @@ from game.sar.observations import (
 _DIR_NAMES = {0: "East", 1: "South", 2: "West", 3: "North"}
 _DIR_CHARS = {0: ">", 1: "v", 2: "<", 3: "^"}
 
+
 # --- Sparse prompt: LLM replies with one or two action words only ---
 SPARSE_SYSTEM_PROMPT = """\
-You are a navigator in a Search and Rescue simulation.
-Reply with ONLY the next action word(s) from: left, right, forward, pickup, drop, toggle, done.
-No explanation. No punctuation. Examples: "forward", "left forward", "toggle".
+You are the Tactical Lead for a Search and Rescue (SAR) operation.
+You have access to game state given below. Study the map in detail, understand other info, and issue a command to help the user complete the mission.
+
+TREE OF THOUGHT REASONING:
+1. Inventory Check: Confirm the agent is not already carrying a key before a 'pickup' for next 'key'.
+2. Path Planning: Account for the fact that the agent cannot move backward; it must turn to change direction.
+3. Prioritization: Determine if a victim can be reached directly or if a door must be unlocked first.
+
+EXAMPLE COMMAND GRAMMAR:
+- "pick up the [color] [key"
+- "drop the [color] [key]"
+- "open the [color] door"
+- "pick up [victim] in the room towards left"
+
+SAR OBJECTIVES and RULES:
+1. Priority 1: Locate and retrieve as many real victimes as possible.
+2. Priority 2: Clear obstacles (Open/Unlock Doors). Avoid Lava.
+2. Rule: You can carry ONLY one 'key' at a time. If holding a key, you must 'drop' it to 'pickup' another 'key'.
+3. Rule: No "Move Back" action exists.
+
+DO NOT:
+1. Use numbers like "go to key at (4, 5)" or "pick up victim at (4, 5)"
+
+OUTPUT:
+Reply with ONLY the mission string. Do NOT use numbers, bullet points, or punctuation.
+Example: drop the blue key or pick up the victim
 
 Current game state:
 {game_state}"""
 
 # --- Detailed prompt: LLM replies with 1–2 sentence guidance ---
 DETAILED_SYSTEM_PROMPT = """\
-You are an AI assistant embedded in a Search and Rescue (SAR) simulation.
-The agent navigates a grid world to rescue victims. You can see the full map.
-Available actions: left, right, forward, pickup, drop, toggle (open/close doors), done.
-Respond with 1–2 sentences of clear, direct guidance. Mention the action and reason briefly.
+You are the Tactical Lead for a Search and Rescue (SAR) operation.
+You have access to game state given below. Study the map in detail, understand other info, and issue a command to help the user complete the mission.
+
+TREE OF THOUGHT REASONING:
+1. Analyze the agent's current position, orientation, and inventory.
+2. Compare 2-3 possible next steps (e.g., "Find the key" vs. "Explore the below room").
+3. Evaluate which step maximizes victim safety and minimizes total moves.
+
+EXAMPLE COMMAND GRAMMAR:
+- Forward, Left, Right, Pickup, Drop, Toggle (for doors).
+
+SAR OBJECTIVES and RULES:
+1. Priority 1: Locate and retrieve as many real victimes as possible.
+2. Priority 2: Clear obstacles (Open/Unlock Doors). Avoid Lava.
+2. Rule: You can carry ONLY one 'key' at a time. If holding a key, you must 'drop' it to 'pickup' another 'key'.
+3. Rule: No "Move Back" action exists.
+
+DO NOT:
+1. Use numbers like "go to key at (4, 5)" or "pick up victim at (4, 5)"
+
+OUTPUT:
+Provide 1–2 sentences of guidance. Reply with ONLY the mission message. Do NOT use numbers.
+Structure: [Action Verb] -> [Target Object] -> [Reason].
+Example: "Turn left and move forward to reach the blue key; you need it to unlock the room where the victim is trapped."
 
 Current game state:
 {game_state}"""
@@ -105,7 +149,6 @@ def object_legend(obs: dict) -> str:
     if lavas:
         lines.append("Lava at: " + ", ".join(lavas))
     return "\n".join(lines)
-
 
 
 def sparse_prompt(obs: dict) -> str:

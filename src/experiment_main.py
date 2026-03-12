@@ -2,6 +2,7 @@ from pathlib import Path
 
 import ray
 import yaml
+from dotenv import load_dotenv
 from ixp.experiment import Experiment
 from ixp.sensors.eye_tracker.tobii import TobiiEyeTracker
 from ixp.surveys.nasa_tlx import NasaTLX
@@ -10,6 +11,8 @@ from ixp.surveys.sart import SART
 from experiment.game import SARGame
 from utils import skip_run
 
+load_dotenv()
+
 with Path("configs/experiment.yaml").open() as f:
     config = yaml.safe_load(f)
 
@@ -17,13 +20,13 @@ with Path("src/experiment/instructions.yaml").open() as f:
     instructions = yaml.safe_load(f)
 
 
-with skip_run("skip", "tobii") as check, check():
+with skip_run("skip", "tobii_calibration") as check, check():
     tobii = TobiiEyeTracker()
     tobii.initialize()
     tobii.calibrate()
 
 
-with skip_run("run", "tobii") as check, check():
+with skip_run("run", "sar_experiment") as check, check():
     ray.init(ignore_reinit_error=True, _system_config={"metrics_report_interval_ms": 0})
     experiment = Experiment(config)
 
