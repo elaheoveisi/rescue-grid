@@ -5,6 +5,8 @@ from game.gui.main import SAREnvGUI
 from game.sar.env import PickupVictimEnv
 from game.sar.utils import VictimPlacer
 
+from ixp.sensors.eye_tracker.tobii import TobiiEyeTracker
+
 try:
     from game.tutorial_env import TutorialEnv
 except ImportError:
@@ -17,7 +19,7 @@ with open(config_path, "r") as file:
     config = yaml.safe_load(file)
 
 
-with skip_run("run", "sar_gui_advanced") as check, check():
+with skip_run("skip", "sar_gui_advanced") as check, check():
     # Access the width and height of the current display
     screen_height = pygame.display.Info().current_h
     victim_placer = VictimPlacer(
@@ -56,3 +58,11 @@ with skip_run("skip", "tutorial") as check, check():
     env.reset()
     gui = SAREnvGUI(env, fullscreen=True)
     gui.run()
+
+
+with skip_run('skip', 'tobii') as check, check():
+    tobii= TobiiEyeTracker()
+    tobii.initialize()
+    tobii.calibrate()
+    
+    

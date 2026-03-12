@@ -10,7 +10,7 @@ pygame.init()
 
 
 class SAREnvGUI:
-    def __init__(self, env, fullscreen=False, prompt_type="detailed", model="gpt-4o-mini", provider="openai"):
+    def __init__(self, env, fullscreen=False, prompt_type="detailed", model="gpt-4o-mini", provider="openai", display=0):
         self.user = User(env, prompt_type=prompt_type, model=model, provider=provider)
         self.env_size = self.user.env.screen_size
 
@@ -21,7 +21,7 @@ class SAREnvGUI:
         self.fullscreen = fullscreen
 
         if self.window is None:
-            self._setup_display()
+            self._setup_display(display=display)
 
         self._calculate_offsets()
 
@@ -30,10 +30,10 @@ class SAREnvGUI:
 
         self._create_panels()
 
-    def _setup_display(self):
+    def _setup_display(self, display=0):
         """Set up the pygame display window based on fullscreen state."""
         if self.fullscreen:
-            self.window = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+            self.window = pygame.display.set_mode((0, 0), pygame.FULLSCREEN, display=display)
             self.screen_size = self.window.get_size()
         else:
             self.window = pygame.display.set_mode(self.window_size)

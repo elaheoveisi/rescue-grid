@@ -1,11 +1,12 @@
 game:
-  display: 0 # Display/monitor index (0 = primary, 1 = secondary, etc.)
+  display: 1 # Display/monitor index (0 = primary, 1 = secondary, etc.)
   fullscreen: True # Run the game and instruction windows in fullscreen
 
 vs:
   width: 800
   height: 600
   fullscreen: true
+  screen: 1
   rows: 4
   cols: 4
   total_trials: 5
@@ -27,6 +28,7 @@ mot:
   width: 800
   height: 600
   fullscreen: true
+  screen: 1
   num_objects: 15
   num_targets: 3
   radius: 25
