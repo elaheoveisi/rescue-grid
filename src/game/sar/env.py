@@ -6,6 +6,7 @@ from ..core.level import SARLevelGen
 from .actions import RescueAction
 from .instructions import PickupAllVictimsInstr, calculate_max_steps
 from .objects import REAL_VICTIMS
+from .observations import GameObservation
 from .utils import LavaPlacer
 
 
@@ -49,6 +50,7 @@ class PickupVictimEnv(SARLevelGen):
         # Custom actions
         self.resuce_action = RescueAction(self)
         self.saved_victims = 0
+        self.observation = GameObservation()
 
     def add_locked_rooms(self, n_locked):
         added = 0
@@ -203,7 +205,10 @@ class PickupVictimEnv(SARLevelGen):
             num_doors=self._count_objects_by_type(Door),
         )
         self.max_steps = self.fixed_max_steps
-        return super().reset(**kwargs)
+        obs, info = super().reset(**kwargs)
+        self.instrs.reset_verifier(self)
+        obs = self.observation.process_observation(obs, self)
+        return obs, info
 
     def gen_mission(self):
         """Generate the mission layout and instructions."""
@@ -254,6 +259,8 @@ class PickupVictimEnv(SARLevelGen):
                     reward += 1.0  # Bonus reward for completing mission
                     info["mission_complete"] = True
 
-            return obs, reward, terminated, truncated, info
         else:
-            return self._step(action)
+            obs, reward, terminated, truncated, info = self._step(action)
+
+        obs = self.observation.process_observation(obs, self)
+        return obs, reward, terminated, truncated, info

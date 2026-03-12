@@ -24,8 +24,6 @@ class SARLevelGen(LevelGen):
         camera_strategy=None,
         **kwargs,
     ):
-        if window is None:
-            self.window = pygame.display.set_mode([800, 800])
 
         super().__init__(
             room_size,

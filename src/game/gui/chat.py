@@ -1,5 +1,5 @@
 import pygame
-from pygame_gui.elements import UILabel, UIPanel
+from pygame_gui.elements import UILabel, UIPanel, UITextBox
 
 
 class ChatPanel:
@@ -8,8 +8,6 @@ class ChatPanel:
     def __init__(self, manager, x_position, y_position, panel_width, panel_height):
         """Initialize the chat panel with pygame_gui elements."""
         self.manager = manager
-        self.panel_x = x_position
-        self.panel_y = y_position
         self.panel_width = panel_width
         self.panel_height = panel_height
         self.messages = []
@@ -24,29 +22,36 @@ class ChatPanel:
 
         # Title
         self.title = UILabel(
-            relative_rect=pygame.Rect(0, 20, panel_width, 40),
+            relative_rect=pygame.Rect(0, 10, panel_width, 40),
             text="CHAT",
             manager=manager,
             container=self.panel,
             object_id="#title",
         )
 
-        # Placeholder text
-        self.placeholder = UILabel(
-            relative_rect=pygame.Rect(20, 80, panel_width - 40, 30),
-            text="Chat panel ready...",
+        # Scrollable message area — top anchored to the bottom of the title
+        self.text_box = UITextBox(
+            html_text="",
+            relative_rect=pygame.Rect(0, 0, panel_width - 15, panel_height - 70),
             manager=manager,
             container=self.panel,
+            anchors={"top": "top", "top_target": self.title},
         )
 
-    def render(self):
-        """Update the chat panel (placeholder for now)."""
-        pass
+    def add_message(self, sender, text, color="#DCDCDC"):
+        """Append a message. color is a hex string, e.g. '#32CD32'."""
+        fragment = f"<font color='{color}'><b>{sender}:</b> {text}</font>"
+        self.messages.append(fragment)
+        self._refresh()
 
-    def add_message(self, message):
-        """Add a message to the chat."""
-        self.messages.append(message)
+    def _refresh(self):
+        self.text_box.set_text("<br>".join(self.messages))
 
     def clear_messages(self):
         """Clear all messages from the chat."""
-        self.messages = []
+        self.messages.clear()
+        self.text_box.set_text("")
+
+    def render(self):
+        """pygame_gui handles drawing via the manager."""
+        pass
