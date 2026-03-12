@@ -1,0 +1,132 @@
+visual_search:
+  - |
+    Welcome to the experiment.
+
+    In this task you will complete a VISUAL SEARCH task.
+
+    On each trial, several T SYMBOLS will appear on the screen.
+    Your goal is to find the CORRECT ORIENTATION of T.
+
+    You will respond using the ARROW KEYS. For example:
+      - T → UP arrow key
+      - ┴ → DOWN arrow key
+      - LEFT arrow key if |- and RIGHT arrow key if -|
+
+    Instructions:
+      - Carefully EXAMINE the T shapes to identify the CORRECT DIRECTION.
+      - Respond as QUICKLY and ACCURATELY as possible.
+
+multi_object_tracking:
+  - |
+    In this task you will TRACK several moving objects.
+
+    At the beginning of each trial, several CIRCLES will appear on the screen.
+    Some circles will be HIGHLIGHTED IN BLACK. These are the TARGET circles.
+
+    MEMORIZE which circles are highlighted.
+
+    After a short time, the highlighting (black color) will DISAPPEAR and all circles will begin MOVING.
+
+    Your task is to KEEP TRACK of the circles that were ORIGINALLY HIGHLIGHTED while they move.
+
+    At the end of the trial:
+      - All circles will STOP MOVING.
+      - You will be asked to IDENTIFY the circles that were originally highlighted.
+      - Use the MOUSE and CLICK on the circle which you think are the targets.
+
+practice:
+  - |
+    You will first complete a PRACTICE TASK. Instructions will appear on right panel.
+
+  - |
+    Controls:
+      - LEFT ARROW KEY : TURN LEFT
+      - RIGHT ARROW KEY : TURN RIGHT
+      - UP ARROW KEY : MOVE FORWARD to advance
+      - TAB : PICK UP ITEMS
+      - SHIFT : DROP ITEMS you are carrying
+      - SPACE : OPEN DOORS
+
+    Movement rules:
+      - You can ONLY MOVE FORWARD.
+      - MOVING BACKWARD is NOT ALLOWED. If you want to move back, you have to ROTATE and then move forward.
+      - To pick an OBJECT, move next to object POINT TOWARDS the object and press TAB
+
+    Keys and doors:
+      - You may carry only ONE KEY at a time.
+      - CLOSED DOORS will be COLORED COMPLETELY.
+      - A closed door can only be opened with a MATCHING KEY.
+      - OPEN DOORS will only have colored edges.
+
+    The practice trials will NOT AFFECT your final results.
+
+main_game:
+  - |
+    In the main task, your goal is to RESCUE VICTIMS while AVOIDING HAZARDS.
+
+    Controls:
+      - LEFT ARROW KEY : TURN LEFT
+      - RIGHT ARROW KEY : TURN RIGHT
+      - UP ARROW KEY : MOVE FORWARD to advance
+      - TAB : PICK UP ITEMS
+      - SHIFT : DROP ITEMS you are carrying
+      - SPACE : OPEN DOORS
+
+    Movement rules:
+      - You can ONLY MOVE FORWARD.
+      - MOVING BACKWARD is NOT ALLOWED. If you want to move back, you have to ROTATE and then move forward.
+      - To pick an OBJECT, move next to object POINT TOWARDS the object and press TAB
+
+    Keys and doors:
+      - You may carry only ONE KEY at a time.
+      - CLOSED DOORS will be COLORED COMPLETELY.
+      - A closed door can only be opened with a MATCHING KEY.
+      - OPEN DOORS will only have colored edges.
+
+  - |
+    Victims:
+      - VICTIMS appear as T symbols. Note they may be ROTATED.
+      - DISTRACTORS are ASYMMETRIC T shapes.
+
+    To RESCUE a victim:
+      - MOVE to a tile next to the victim.
+      - POINT toward the victim and press TAB to PICK THEM UP.
+
+    Hazards:
+      - Some tiles contain FIRE (they will be ORANGE).
+      - AVOID stepping on FIRE TILES.
+
+    Objective:
+      - RESCUE all the CORRECT VICTIMS within the STEPS AVAILABLE.
+      - AVOID HAZARDS.
+      - You will recieve a NEGATIVE REWARD
+
+  - |
+    Interface information:
+      - An AI TEAMMATE will provide suggestions in the CHATBOX.
+      - If you are stuck and need help you can press ALT key and the AI teammate will respond.
+      - You CHOOSE to follow the INSTRUCTIONS.
+      - The interface will display:
+        - VICTIMS RESCUED
+        - SCORE
+        - The KEY you are carrying
+        - STEPS USED
+        - STEPS REMAINING
+
+sart:
+  - |
+    SART Questionnaire
+
+    You will see a series of questions.
+
+    For each question:
+      - Use the SLIDER to select your response.
+      - Choose the POSITION that best represents your answer.
+
+nasa_tlx: |
+  NASA-TLX Questionnaire
+
+  You will rate your MENTAL WORKLOAD during the task.
+
+  Several questions will appear.
+  For each question, use the SLIDER to indicate your rating.

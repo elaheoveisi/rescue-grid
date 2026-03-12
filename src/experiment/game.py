@@ -57,12 +57,16 @@ class SARGameTrial(LSLTrial):
             provider=parameters.get("provider", "openai"),
             display=parameters.get("display", 0),
         )
+        self.gui.info_panel.set_trial_name(trial_id)
 
     def initialize(self) -> None:
         self.gui.reset()
+        self.gui.running = True
+        self.gui.user.total_steps = 0
+        self.gui.user.episode_ended = False
 
     def clean_up(self) -> None:
-        pygame.quit()
+        pass
 
     def read_data(self) -> list[str] | None:
         user = self.gui.user
@@ -77,17 +81,29 @@ class SARGameTrial(LSLTrial):
             "llm_model": user.model,
             "llm_provider": user.provider,
             "llm_response": user.last_llm_response,
+            "total_steps": user.total_steps,
         }
         return [ujson.dumps(state)]
 
     def execute(self) -> None:
+        min_steps = self.parameters.get("min_steps", 500)
 
         while self.gui.running:
+            user = self.gui.user
+            enough = user.total_steps >= min_steps
+
+            if enough and user.episode_ended:
+                self.gui.close()
+                break
+
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    self.gui.close()
+                    if enough:
+                        self.gui.close()
                     break
                 self.gui.manager.process_events(event)
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE and not enough:
+                    continue
                 self.gui.handle_user_input(event)
 
             if self.gui.running:
@@ -167,4 +183,5 @@ class SARGame(Task):
 
     def execute(self, order: str = "random") -> list:
         super().execute(order)
+        pygame.quit()
         return []

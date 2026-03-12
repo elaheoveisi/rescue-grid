@@ -31,6 +31,16 @@ class InfoPanel:
             object_id="#title",
         )
 
+        # Trial name
+        self.trial_label = UILabel(
+            relative_rect=pygame.Rect(0, 5, panel_width, 25),
+            text="",
+            manager=manager,
+            container=self.panel,
+            object_id="#info_text",
+            anchors={"top": "top", "top_target": self.title},
+        )
+
         # Victims section
         self.victims_header = UILabel(
             relative_rect=pygame.Rect(PADDING_X, 10, content_width, 30),
@@ -38,7 +48,7 @@ class InfoPanel:
             manager=manager,
             container=self.panel,
             object_id="#section_header",
-            anchors={"top": "top", "top_target": self.title},
+            anchors={"top": "top", "top_target": self.trial_label},
         )
 
         self.rescued_label = UILabel(
@@ -101,6 +111,9 @@ class InfoPanel:
             object_id="#success_text",
             anchors={"bottom": "bottom"},
         )
+
+    def set_trial_name(self, name: str):
+        self.trial_label.set_text(name)
 
     def _update_victims_section(self, mission_status):
         """Update the victims section labels."""

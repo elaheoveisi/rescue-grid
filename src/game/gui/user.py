@@ -18,6 +18,8 @@ class User(ManualControl):
         self.model = model
         self.provider = provider
         self.last_llm_response: str | None = None
+        self.total_steps = 0
+        self.episode_ended = False
 
     def step(self, action: Actions):
         self.obs, reward, terminated, truncated, info = self.env.step(action)
@@ -25,11 +27,12 @@ class User(ManualControl):
         self.last_reward = float(reward)
         self.terminated = bool(terminated)
         self.truncated = bool(truncated)
+        self.total_steps += 1
         if terminated:
-            print("terminated!")
+            self.episode_ended = True
             self.reset()
         elif truncated:
-            print("truncated!")
+            self.episode_ended = True
             self.reset()
         else:
             self.env.render()

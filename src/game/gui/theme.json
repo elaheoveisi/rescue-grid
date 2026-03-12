@@ -179,5 +179,17 @@
         "misc": {
             "text_horiz_alignment": "left"
         }
+    },
+    "text_box": {
+        "font": {
+            "name": "arial",
+            "size": "24",
+            "bold": "0",
+            "italic": "0"
+        },
+        "colours": {
+            "dark_bg": "#1E1E28",
+            "normal_text": "#DCDCDC"
+        }
     }
 }
