@@ -83,22 +83,15 @@ def scan_grid(env) -> list:
     return arr.tolist()
 
 
-def grid_to_array(env) -> np.ndarray:
-    """Return a (height x width) int16 array using the full encoding."""
-    arr = np.zeros((env.height, env.width), dtype=np.int16)
-    for y in range(env.height):
-        for x in range(env.width):
-            obj = env.grid.get(x, y)
-            if obj is None:
-                continue
-            type_name = type(obj).__name__
-            if type_name == "Door":
-                arr[y, x] = _door_id(obj.color, obj.is_open, obj.is_locked)
-            elif type_name == "Key":
-                arr[y, x] = _key_id(obj.color)
-            else:
-                arr[y, x] = OBJ_TO_ID.get(type_name, 0)
-    return arr
+
+def cam_bounds(obs: dict) -> tuple[int, int, int, int]:
+    """Return (x0, y0, x1, y1) camera view bounds from an obs dict."""
+    if "cam_top_x" in obs:
+        x0, y0 = obs["cam_top_x"], obs["cam_top_y"]
+        return x0, y0, x0 + obs["cam_view_w"], y0 + obs["cam_view_h"]
+    half = 6
+    ax, ay = obs["agent_x"], obs["agent_y"]
+    return ax - half, ay - half, ax + half + 1, ay + half + 1
 
 
 class GameObservation:

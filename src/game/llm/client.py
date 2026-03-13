@@ -1,5 +1,6 @@
 from llama_index.core.llms import ChatMessage, MessageRole
 
+from .parser import Goal, parse_goals
 from .prompts import build_prompt
 
 llm_cache: dict = {}
@@ -33,16 +34,40 @@ def ask(
 
     Args:
         obs: Enriched observation dict from the env.
-        prompt_type: "sparse" (action words only) or "detailed" (1-2 sentences).
+        prompt_type: "sparse", "detailed", "semantic", or "decompose".
         model: Model name (e.g. "gpt-4o-mini", "gemini-1.5-flash").
         provider: "openai" or "gemini".
-    """
 
+    Returns:
+        The raw LLM response string.
+    """
     llm = get_llm(model, provider)
-    print(build_prompt(obs, prompt_type))
+    prompt = build_prompt(obs, prompt_type)
+    print(prompt)
     messages = [
-        ChatMessage(role=MessageRole.SYSTEM, content=build_prompt(obs, prompt_type)),
-        ChatMessage(role=MessageRole.USER, content="What should I do next?"),
+        ChatMessage(role=MessageRole.SYSTEM, content=prompt),
     ]
     response = llm.chat(messages)
+    print(response)
+    print('-'*32)
     return response.message.content.strip()
+
+
+def ask_goals(
+    obs: dict,
+    model: str = "gpt-5",
+    provider: str = "openai",
+) -> list[Goal]:
+    """Ask the LLM to decompose the current mission into high-level goals.
+
+    Uses the structured ``to_structured`` observation and the ``decompose``
+    prompt.  Returns a parsed list of strategic :class:`~game.llm.parser.Goal`
+    objects (e.g. ExploreRoom, RescueVictim, ClearDoor).
+
+    Returns:
+        Ordered list of :class:`~game.llm.parser.Goal` objects extracted from
+        the ``<START>...<END>`` block.  Returns an empty list if the LLM
+        response cannot be parsed.
+    """
+    raw = ask(obs, prompt_type="decompose", model=model, provider=provider)
+    return parse_goals(raw, obs=obs)

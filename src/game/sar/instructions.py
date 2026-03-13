@@ -83,24 +83,20 @@ class PickupAllVictimsInstr(Instr):
         self.victim_types = [type(v) for v in victims]
         self.num_victims = len(victims)
 
+    def reset_verifier(self, env):
+        """Called on env reset; sets self.env so verify() can access the grid."""
+        self.env = env
+
     def verify(self, action):
         """
         Verify if all victims have been picked up.
 
-        Args:
-            env: The environment instance
-
         Returns:
             str: 'success' if all victims picked up, 'continue' otherwise
         """
-        # Use utility method to count remaining victims
         remaining_victims = self.env._count_objects_by_type(REAL_VICTIMS)
-
-        # All victims have been picked up
         if remaining_victims == 0:
             return "success"
-
-        # Still victims to pick up
         return "continue"
 
     def surface(self, env):

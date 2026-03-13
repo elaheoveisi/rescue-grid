@@ -93,13 +93,6 @@ class RealVictims:
     RIGHT = lambda color="red": Victim("right", color)
 
 
-# Backward compatibility aliases
-VictimUp = RealVictims.UP
-VictimDown = RealVictims.DOWN
-VictimLeft = RealVictims.LEFT
-VictimRight = RealVictims.RIGHT
-
-
 class FakeVictim(VictimBase):
     """Fake victim with asymmetric T-shape."""
 
@@ -171,17 +164,6 @@ class FakeVictims:
     RIGHT_DOWN = lambda color="red": FakeVictim("right", "down", color)
     RIGHT_LEFT = lambda color="red": FakeVictim("right", "left", color)
     RIGHT_RIGHT = lambda color="red": FakeVictim("right", "right", color)
-
-
-# Backward compatibility aliases
-FakeVictimLeftUp = FakeVictims.LEFT_UP
-FakeVictimLeftDown = FakeVictims.LEFT_DOWN
-FakeVictimLeftLeft = FakeVictims.LEFT_LEFT
-FakeVictimLeftRight = FakeVictims.LEFT_RIGHT
-FakeVictimRightUp = FakeVictims.RIGHT_UP
-FakeVictimRightDown = FakeVictims.RIGHT_DOWN
-FakeVictimRightLeft = FakeVictims.RIGHT_LEFT
-FakeVictimRightRight = FakeVictims.RIGHT_RIGHT
 
 
 # Constants for victim type checking

@@ -97,22 +97,7 @@ class PickupVictimEnv(SARLevelGen):
             added += 1
 
     def _count_objects_by_type(self, obj_types):
-        """
-        Utility method to count objects of specific types on the grid.
-
-        Args:
-            obj_types: Tuple of object types to count
-
-        Returns:
-            int: Number of objects matching the types
-        """
-        count = 0
-        for x in range(self.width):
-            for y in range(self.height):
-                obj = self.grid.get(x, y)
-                if isinstance(obj, obj_types):
-                    count += 1
-        return count
+        return len(self._find_objects_by_type(obj_types))
 
     def _find_objects_by_type(self, obj_types):
         """
@@ -207,6 +192,9 @@ class PickupVictimEnv(SARLevelGen):
         self.max_steps = self.fixed_max_steps
         obs, info = super().reset(**kwargs)
         self.instrs.reset_verifier(self)
+        cam = getattr(self, "camera", None)
+        if cam is not None and hasattr(cam, "reset"):
+            cam.reset()
         obs = self.observation.process_observation(obs, self)
         return obs, info
 
@@ -253,7 +241,7 @@ class PickupVictimEnv(SARLevelGen):
 
             # Verify if mission is complete after pickup action
             if hasattr(self, "instrs") and self.instrs is not None:
-                status = self.instrs.verify(action)
+                status = self.instrs.verify(self)
                 if status == "success":
                     terminated = True
                     reward += 1.0  # Bonus reward for completing mission

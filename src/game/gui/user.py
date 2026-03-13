@@ -1,7 +1,8 @@
 from minigrid.core.actions import Actions
 from minigrid.manual_control import ManualControl
 
-from ..llm.client import ask
+from ..llm.client import ask, ask_goals
+from ..llm.parser import Goal
 
 
 class User(ManualControl):
@@ -18,6 +19,7 @@ class User(ManualControl):
         self.model = model
         self.provider = provider
         self.last_llm_response: str | None = None
+        self.current_goals: list[Goal] = []
         self.total_steps = 0
         self.episode_ended = False
 
@@ -74,11 +76,21 @@ class User(ManualControl):
         self.obs = obs
 
     def ask_llm(self) -> str:
-        """Ask the LLM for advice based on the current game state."""
-        self.last_llm_response = ask(
-            self.obs,
-            prompt_type=self.prompt_type,
-            model=self.model,
-            provider=self.provider,
+        """Ask the LLM for advice based on the current game state.
+
+        When prompt_type is 'decompose', returns a numbered mission plan.
+        Otherwise returns a single action string.
+        """
+
+        if self.obs is None:
+            self.last_llm_response = "No observation available yet."
+            return self.last_llm_response
+
+        self.current_goals = ask_goals(
+            self.obs, model=self.model, provider=self.provider
         )
+        self.last_llm_response = "\n".join(
+            f"{i + 1}. {g}" for i, g in enumerate(self.current_goals)
+        ) or "No goals parsed."
+
         return self.last_llm_response

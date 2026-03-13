@@ -35,18 +35,17 @@ class SARGameTrial(LSLTrial):
             num_fake_victims=5, num_real_victims=3, important_victim="down"
         )
         env = PickupVictimEnv(
-            num_rows=3,
-            num_cols=3,
+            num_rows=5,
+            num_cols=5,
             screen_size=screen_height,
             render_mode="rgb_array",
             agent_pov=True,
             add_lava=True,
             lava_per_room=2,
-            locked_room_prob=0.5,
+            locked_room_prob=0.35,
             tile_size=64,
             victim_placer=victim_placer,
         )
-        env.reset()
         os.environ["SDL_VIDEO_FULLSCREEN_DISPLAY"] = str(parameters.get("display", 0))
         self.gui = SAREnvGUI(
             env,

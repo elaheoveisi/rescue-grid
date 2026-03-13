@@ -110,10 +110,12 @@ class SAREnvGUI:
                 self.chat_panel.add_message("Agent", "thinking...", color="#888888")
                 self.render(self.user.get_frame())
                 reply = self.user.ask_llm()
-                self.chat_panel.messages.pop()
+                if self.chat_panel.messages:
+                    self.chat_panel.messages.pop()
                 self.chat_panel.add_message("Agent", reply, color="#6495ED")
             except Exception as e:
-                self.chat_panel.messages.pop()
+                if self.chat_panel.messages:
+                    self.chat_panel.messages.pop()
                 self.chat_panel.add_message("Error", str(e), color="#DC143C")
         else:
             event.key = pygame.key.name(int(event.key))
