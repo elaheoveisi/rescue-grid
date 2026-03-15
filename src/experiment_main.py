@@ -9,6 +9,7 @@ from ixp.surveys.nasa_tlx import NasaTLX
 from ixp.surveys.sart import SART
 
 from experiment.game import SARGame
+from experiment.tutorial import SARTutorial
 from utils import skip_run
 
 load_dotenv()
@@ -44,13 +45,13 @@ with skip_run("run", "sar_experiment") as check, check():
     #     order=2,
     #     instructions=instructions["multi_object_tracking"],
     # )
-    # experiment.add_task(
-    #     name="practice",
-    #     task_cls=SARTutorial,
-    #     task_config={"config": config["game"]},
-    #     order=2,
-    #     instructions=instructions["practice"],
-    # )
+    experiment.add_task(
+        name="practice",
+        task_cls=SARTutorial,
+        task_config={"config": config["game"]},
+        order=2,
+        instructions=instructions["practice"],
+    )
     experiment.add_task(
         name="main_game",
         task_cls=SARGame,

@@ -79,8 +79,6 @@ class PickupAllVictimsInstr(Instr):
         Args:
             victims: List of victim objects that need to be picked up
         """
-        self.victims = victims
-        self.victim_types = [type(v) for v in victims]
         self.num_victims = len(victims)
 
     def reset_verifier(self, env):

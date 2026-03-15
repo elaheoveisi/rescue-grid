@@ -50,7 +50,3 @@ class ChatPanel:
         """Clear all messages from the chat."""
         self.messages.clear()
         self.text_box.set_text("")
-
-    def render(self):
-        """pygame_gui handles drawing via the manager."""
-        pass

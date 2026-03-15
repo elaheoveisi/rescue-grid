@@ -37,8 +37,6 @@ def ask(
         ChatMessage(role=MessageRole.USER, content=prompt),
     ]
     response = llm.chat(messages)
-    print(response)
-    print("-" * 32)
     raw = response.message.content
     if raw is None:
         # Gemini returns blocks instead of a content string

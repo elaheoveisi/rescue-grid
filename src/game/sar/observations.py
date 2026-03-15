@@ -83,7 +83,6 @@ def scan_grid(env) -> list:
     return arr.tolist()
 
 
-
 def cam_bounds(obs: dict) -> tuple[int, int, int, int]:
     """Return (x0, y0, x1, y1) camera view bounds from an obs dict."""
     if "cam_top_x" in obs:

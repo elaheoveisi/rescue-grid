@@ -31,13 +31,16 @@ class SARGameTrial(LSLTrial):
 
     def __init__(self, trial_id: str, parameters: dict[str, Any]):
         super().__init__(trial_id, parameters)
+        self.gui = None
+
+    def initialize(self) -> None:
         screen_height = pygame.display.Info().current_h
         victim_placer = VictimPlacer(
             num_fake_victims=5, num_real_victims=3, important_victim="down"
         )
         env = PickupVictimEnv(
-            num_rows=parameters.get("num_rows"),
-            num_cols=parameters.get("num_cols"),
+            num_rows=self.parameters.get("num_rows"),
+            num_cols=self.parameters.get("num_cols"),
             screen_size=screen_height,
             render_mode="rgb_array",
             agent_pov=True,
@@ -47,18 +50,18 @@ class SARGameTrial(LSLTrial):
             tile_size=64,
             victim_placer=victim_placer,
         )
-        os.environ["SDL_VIDEO_FULLSCREEN_DISPLAY"] = str(parameters.get("display", 0))
+        os.environ["SDL_VIDEO_FULLSCREEN_DISPLAY"] = str(
+            self.parameters.get("display", 0)
+        )
         self.gui = SAREnvGUI(
             env,
-            fullscreen=parameters.get("fullscreen", False),
-            prompt_type=parameters.get("prompt_type", "detailed"),
-            model=parameters.get("model", "gpt-4o-mini"),
-            provider=parameters.get("provider", "openai"),
-            display=parameters.get("display", 0),
+            fullscreen=self.parameters.get("fullscreen", False),
+            prompt_type=self.parameters.get("prompt_type", "detailed"),
+            model=self.parameters.get("model", "gpt-4o-mini"),
+            provider=self.parameters.get("provider", "openai"),
+            display=self.parameters.get("display", 0),
         )
-        self.gui.info_panel.set_trial_name(trial_id)
-
-    def initialize(self) -> None:
+        self.gui.info_panel.set_trial_name(self.trial_id)
         self.gui.reset()
         self.gui.running = True
         self.gui.user.total_steps = 0
@@ -81,6 +84,7 @@ class SARGameTrial(LSLTrial):
             "llm_provider": user.provider,
             "llm_response": user.last_llm_response,
             "total_steps": user.total_steps,
+            "trial_id": self.trial_id,
         }
         return [ujson.dumps(state)]
 

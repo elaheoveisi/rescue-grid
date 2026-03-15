@@ -14,7 +14,7 @@ class BaseAction:
 class RescueAction(BaseAction):
     """Pick up a victim (reward +1) or fake victim (penalty -0.5)."""
 
-    def execute(self, action):
+    def execute(self):
         fwd_pos = self.env.front_pos
         obj = self.env.grid.get(*fwd_pos)
         reward = 0

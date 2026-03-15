@@ -4,6 +4,7 @@ All queries operate on the encoded integer grid from obs["grid"].
 Lava and walls are impassable. Locked doors are impassable unless the
 agent is carrying the matching colour key.
 """
+
 from __future__ import annotations
 
 from collections import deque
@@ -26,8 +27,8 @@ _EMPTY = 0
 @dataclass
 class PathResult:
     reachable: bool
-    path_length: int | None          # steps to stand adjacent and interact
-    blocking_doors: list[str]        # colours of locked doors on shortest path
+    path_length: int | None  # steps to stand adjacent and interact
+    blocking_doors: list[str]  # colours of locked doors on shortest path
 
 
 def _is_passable(cell: int, carrying: str | None) -> bool:
@@ -46,8 +47,6 @@ def _is_passable(cell: int, carrying: str | None) -> bool:
     if is_key(cell):
         return True  # keys don't block movement
     # victims and fake victims block movement (can_overlap = False)
-    if cell in (VICTIM, FAKE_VICTIM):
-        return False
     return False
 
 

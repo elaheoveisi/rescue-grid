@@ -48,8 +48,7 @@ class PickupVictimEnv(SARLevelGen):
             )
 
         # Custom actions
-        self.resuce_action = RescueAction(self)
-        self.saved_victims = 0
+        self.rescue_action = RescueAction(self)
         self.observation = GameObservation()
 
     def add_locked_rooms(self, n_locked):
@@ -235,9 +234,7 @@ class PickupVictimEnv(SARLevelGen):
 
     def step(self, action):
         if action == self.actions.pickup:
-            obs, reward, terminated, truncated, info = self.resuce_action.execute(
-                action
-            )
+            obs, reward, terminated, truncated, info = self.rescue_action.execute()
 
             # Verify if mission is complete after pickup action
             if hasattr(self, "instrs") and self.instrs is not None:

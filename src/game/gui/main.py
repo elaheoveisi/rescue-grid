@@ -52,11 +52,14 @@ class SAREnvGUI:
     def _create_panels(self):
         """Create (or recreate) the UI manager and side panels."""
         self.manager = pygame_gui.UIManager(self.window_size, "src/game/gui/theme.json")
-        half = self.env_size // 2
         self.info_panel = InfoPanel(self.manager, self.env_size, self.panel_width)
-        self.info_panel.env_size = half
+        self.info_panel.env_size = self.panel_width
         self.chat_panel = ChatPanel(
-            self.manager, self.env_size, half, self.panel_width, half
+            self.manager,
+            self.env_size,
+            self.panel_width,
+            self.panel_width,
+            self.panel_width,
         )
 
     def _calculate_offsets(self):
@@ -82,7 +85,6 @@ class SAREnvGUI:
         combined_surface.blit(game_surface, (0, 0))
 
         self.info_panel.render(self.user.env)
-        self.chat_panel.render()
 
         time_delta = self.clock.tick(30) / 1000.0
         self.manager.update(time_delta)
@@ -110,12 +112,8 @@ class SAREnvGUI:
                 self.chat_panel.add_message("Agent", "thinking...", color="#888888")
                 self.render(self.user.get_frame())
                 reply = self.user.ask_llm()
-                if self.chat_panel.messages:
-                    self.chat_panel.messages.pop()
                 self.chat_panel.add_message("Agent", reply, color="#6495ED")
             except Exception as e:
-                if self.chat_panel.messages:
-                    self.chat_panel.messages.pop()
                 self.chat_panel.add_message("Error", str(e), color="#DC143C")
         else:
             event.key = pygame.key.name(int(event.key))

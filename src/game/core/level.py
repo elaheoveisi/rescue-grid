@@ -45,9 +45,6 @@ class SARLevelGen(LevelGen):
 
     def gen_mission(self):
         """Generate the mission layout and instructions."""
-        if self._rand_float(0, 1) <= 0:
-            self.add_locked_room()
-
         self.connect_all()
 
         # Place agent outside locked room
