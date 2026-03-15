@@ -90,18 +90,19 @@ class LavaPlacer:
             num_lava = self.lava_per_room
 
         placed = 0
-        max_attempts = 50  # Prevent infinite loops
+        consecutive_failures = 0
 
-        for _ in range(max_attempts):
+        for _ in range(50):
             if placed >= num_lava:
                 break
-
             try:
                 level_gen.place_in_room(i, j, Lava())
                 placed += 1
+                consecutive_failures = 0
             except Exception:
-                # Room might be full or placement failed
-                continue
+                consecutive_failures += 1
+                if consecutive_failures >= 10:
+                    break  # Room is likely full
 
     def place_all(self, level_gen, num_rows, num_cols, skip_locked_rooms=False):
         """

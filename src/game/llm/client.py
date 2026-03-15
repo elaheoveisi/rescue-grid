@@ -1,7 +1,7 @@
 from llama_index.core.llms import ChatMessage, MessageRole
 
 from .parser import clean_response
-from .prompts import build_prompt
+from .process_prompts import build_prompt
 
 llm_cache: dict = {}
 
@@ -28,9 +28,10 @@ def ask(
     obs: dict,
     model: str = "gpt-4o-mini",
     provider: str = "openai",
+    prompt_type: str = "sparse",
 ) -> str:
     llm = get_llm(model, provider)
-    prompt = build_prompt(obs)
+    prompt = build_prompt(obs, prompt_type=prompt_type)
     # Gemini requires at least one USER message; SYSTEM-only crashes with pop from empty list.
     # Sending prompt as USER works universally across providers.
     messages = [

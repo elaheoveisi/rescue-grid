@@ -4,8 +4,9 @@ from .objects import FAKE_VICTIMS, REAL_VICTIMS
 class BaseAction:
     """Abstract base class for all actions."""
 
-    def __init__(self, env):
+    def __init__(self, env, fallback=None):
         self.env = env
+        self.fallback = fallback
 
     def execute(self):
         raise NotImplementedError
@@ -28,7 +29,7 @@ class RescueAction(BaseAction):
             reward = -0.5
         else:
             # fallback to normal pickup
-            return self.env._step(self.env.actions.pickup)
+            return self.fallback(self.env.actions.pickup)
 
         obs = self.env.gen_obs()
         # Don't terminate here - let the instruction verification system handle it

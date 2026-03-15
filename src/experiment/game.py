@@ -8,8 +8,7 @@ import ujson
 from ixp.task import Block, LSLTrial, Task
 
 from game.gui.main import SAREnvGUI
-from game.sar.env import PickupVictimEnv
-from game.sar.utils import VictimPlacer
+from game.sar.env import build_sar_env
 
 
 class SARGameTrial(LSLTrial):
@@ -35,20 +34,10 @@ class SARGameTrial(LSLTrial):
 
     def initialize(self) -> None:
         screen_height = pygame.display.Info().current_h
-        victim_placer = VictimPlacer(
-            num_fake_victims=5, num_real_victims=3, important_victim="down"
-        )
-        env = PickupVictimEnv(
+        env = build_sar_env(
+            screen_size=screen_height,
             num_rows=self.parameters.get("num_rows"),
             num_cols=self.parameters.get("num_cols"),
-            screen_size=screen_height,
-            render_mode="rgb_array",
-            agent_pov=True,
-            add_lava=True,
-            lava_per_room=2,
-            locked_room_prob=0.35,
-            tile_size=64,
-            victim_placer=victim_placer,
         )
         os.environ["SDL_VIDEO_FULLSCREEN_DISPLAY"] = str(
             self.parameters.get("display", 0)
@@ -68,7 +57,7 @@ class SARGameTrial(LSLTrial):
         self.gui.user.episode_ended = False
 
     def clean_up(self) -> None:
-        pass
+        self.gui = None
 
     def read_data(self) -> list[str] | None:
         user = self.gui.user

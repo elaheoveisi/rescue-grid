@@ -80,5 +80,7 @@ class User(ManualControl):
             self.last_llm_response = "No observation available yet."
             return self.last_llm_response
 
-        self.last_llm_response = ask(self.obs, model=self.model, provider=self.provider)
+        self.last_llm_response = ask(
+            self.obs, model=self.model, provider=self.provider, prompt_type=self.prompt_type
+        )
         return self.last_llm_response

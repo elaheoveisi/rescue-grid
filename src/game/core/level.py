@@ -44,23 +44,7 @@ class SARLevelGen(LevelGen):
         self.saved_victims = 0
 
     def gen_mission(self):
-        """Generate the mission layout and instructions."""
-        self.connect_all()
-
-        # Place agent outside locked room
-        while True:
-            self.place_agent()
-            start_room = self.room_from_pos(*self.agent_pos)
-            if start_room is not self.locked_room:
-                break
-
-        if not self.unblocking:
-            self.check_objs_reachable()
-
-        self.instrs = self.rand_instr(
-            action_kinds=self.action_kinds,
-            instr_kinds=self.instr_kinds,
-        )
+        raise NotImplementedError("Subclasses must implement gen_mission()")
 
     def get_camera_view(self, **kwargs) -> np.ndarray:
         """Get current camera view using the configured strategy."""

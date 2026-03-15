@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 import yaml
+
 from game.sar.observations import (
     FAKE_VICTIM,
     LAVA,
@@ -136,8 +137,10 @@ def _build_grid_info(obs: dict) -> str:
     )
 
 
-def build_prompt(obs: dict) -> str:
+def build_prompt(obs: dict, prompt_type: str = "sparse") -> str:
     path = Path(__file__).parent / "prompts.yaml"
     with open(path) as f:
         cfg = yaml.safe_load(f)
-    return cfg["prompt"].format(obs=build_obs(obs), grid_info=_build_grid_info(obs))
+    suffix_key = "detailed_suffix" if prompt_type == "detailed" else "sparse_suffix"
+    template = cfg["preamble"] + cfg[suffix_key]
+    return template.format(obs=build_obs(obs), grid_info=_build_grid_info(obs))

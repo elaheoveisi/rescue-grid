@@ -7,7 +7,40 @@ from .actions import RescueAction
 from .instructions import PickupAllVictimsInstr, calculate_max_steps
 from .objects import REAL_VICTIMS
 from .observations import GameObservation
-from .utils import LavaPlacer
+from .utils import LavaPlacer, VictimPlacer
+
+
+def build_sar_env(
+    screen_size: int,
+    num_rows: int = 3,
+    num_cols: int = 3,
+    num_fake_victims: int = 5,
+    num_real_victims: int = 3,
+    important_victim: str = "down",
+    lava_per_room: int = 2,
+    locked_room_prob: float = 0.35,
+    tile_size: int = 64,
+    **kwargs,
+) -> "PickupVictimEnv":
+    """Factory that creates a fully configured PickupVictimEnv."""
+    victim_placer = VictimPlacer(
+        num_fake_victims=num_fake_victims,
+        num_real_victims=num_real_victims,
+        important_victim=important_victim,
+    )
+    return PickupVictimEnv(
+        num_rows=num_rows,
+        num_cols=num_cols,
+        screen_size=screen_size,
+        render_mode="rgb_array",
+        agent_pov=True,
+        add_lava=True,
+        lava_per_room=lava_per_room,
+        locked_room_prob=locked_room_prob,
+        tile_size=tile_size,
+        victim_placer=victim_placer,
+        **kwargs,
+    )
 
 
 class PickupVictimEnv(SARLevelGen):
@@ -48,7 +81,7 @@ class PickupVictimEnv(SARLevelGen):
             )
 
         # Custom actions
-        self.rescue_action = RescueAction(self)
+        self.rescue_action = RescueAction(self, fallback=self._step)
         self.observation = GameObservation()
 
     def add_locked_rooms(self, n_locked):
