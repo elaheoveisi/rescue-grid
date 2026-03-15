@@ -13,13 +13,13 @@ def get_llm(model: str, provider: str):
             from llama_index.llms.openai import OpenAI
 
             llm_cache[key] = OpenAI(model=model)
-        elif provider == "gemini":
+        elif provider == "google":
             from llama_index.llms.google_genai import GoogleGenAI
 
             llm_cache[key] = GoogleGenAI(model=model)
         else:
             raise ValueError(
-                f"Unknown provider: {provider!r}. Use 'openai' or 'gemini'."
+                f"Unknown provider: {provider!r}. Use 'openai' or 'google'."
             )
     return llm_cache[key]
 
@@ -31,18 +31,22 @@ def ask(
 ) -> str:
     llm = get_llm(model, provider)
     prompt = build_prompt(obs)
-    print(prompt)
+    # Gemini requires at least one USER message; SYSTEM-only crashes with pop from empty list.
+    # Sending prompt as USER works universally across providers.
     messages = [
-        ChatMessage(role=MessageRole.SYSTEM, content=prompt),
+        ChatMessage(role=MessageRole.USER, content=prompt),
     ]
     response = llm.chat(messages)
     print(response)
-    print('-'*32)
+    print("-" * 32)
     raw = response.message.content
+    if raw is None:
+        # Gemini returns blocks instead of a content string
+        raw = "".join(
+            b.text for b in (response.message.blocks or []) if hasattr(b, "text")
+        )
     if "<START>" in raw and "<END>" in raw:
         extracted = raw.split("<START>")[1].split("<END>")[0].strip()
     else:
         extracted = raw.strip()
     return clean_response(extracted)
-
-

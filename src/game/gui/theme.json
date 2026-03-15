@@ -190,6 +190,9 @@
         "colours": {
             "dark_bg": "#1E1E28",
             "normal_text": "#DCDCDC"
+        },
+        "misc": {
+            "border_width": "0"
         }
     }
 }

@@ -5,10 +5,11 @@ from typing import Any
 
 import pygame
 import ujson
+from ixp.task import Block, LSLTrial, Task
+
 from game.gui.main import SAREnvGUI
 from game.sar.env import PickupVictimEnv
 from game.sar.utils import VictimPlacer
-from ixp.task import Block, LSLTrial, Task
 
 
 class SARGameTrial(LSLTrial):
@@ -35,8 +36,8 @@ class SARGameTrial(LSLTrial):
             num_fake_victims=5, num_real_victims=3, important_victim="down"
         )
         env = PickupVictimEnv(
-            num_rows=5,
-            num_cols=5,
+            num_rows=parameters.get("num_rows"),
+            num_cols=parameters.get("num_cols"),
             screen_size=screen_height,
             render_mode="rgb_array",
             agent_pov=True,
@@ -117,56 +118,56 @@ class SARGame(Task):
     def __init__(self, config: dict[str, Any]):
         super().__init__(config)
         openai_model = config.get("openai_model", "gpt-4o-mini")
-        gemini_model = config.get("gemini_model", "gemini-1.5-flash")
+        google_model = config.get("google_model", "gemini-1.5-flash")
         block = Block("sar_game_block")
-        block.add_trial(
-            SARGameTrial(
-                "trial_sparse_openai",
-                {
-                    **config,
-                    "prompt_type": "sparse",
-                    "provider": "openai",
-                    "model": openai_model,
-                },
-            ),
-            order=1,
-        )
-        block.add_trial(
-            SARGameTrial(
-                "trial_detailed_openai",
-                {
-                    **config,
-                    "prompt_type": "detailed",
-                    "provider": "openai",
-                    "model": openai_model,
-                },
-            ),
-            order=2,
-        )
         # block.add_trial(
         #     SARGameTrial(
-        #         "trial_sparse_gemini",
+        #         "trial_sparse_openai",
         #         {
         #             **config,
         #             "prompt_type": "sparse",
-        #             "provider": "gemini",
-        #             "model": gemini_model,
+        #             "provider": "openai",
+        #             "model": openai_model,
         #         },
         #     ),
-        #     order=3,
+        #     order=1,
         # )
         # block.add_trial(
         #     SARGameTrial(
-        #         "trial_detailed_gemini",
+        #         "trial_detailed_openai",
         #         {
         #             **config,
         #             "prompt_type": "detailed",
-        #             "provider": "gemini",
-        #             "model": gemini_model,
+        #             "provider": "openai",
+        #             "model": openai_model,
         #         },
         #     ),
-        #     order=4,
+        #     order=2,
         # )
+        block.add_trial(
+            SARGameTrial(
+                "trial_sparse_gemini",
+                {
+                    **config,
+                    "prompt_type": "sparse",
+                    "provider": "google",
+                    "model": google_model,
+                },
+            ),
+            order=3,
+        )
+        block.add_trial(
+            SARGameTrial(
+                "trial_detailed_gemini",
+                {
+                    **config,
+                    "prompt_type": "detailed",
+                    "provider": "google",
+                    "model": google_model,
+                },
+            ),
+            order=4,
+        )
         self.add_block(block)
 
     def get_data_signature(self) -> dict[str, Any]:

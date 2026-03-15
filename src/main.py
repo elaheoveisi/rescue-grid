@@ -1,11 +1,10 @@
 import pygame
 import yaml
+from ixp.sensors.eye_tracker.tobii import TobiiEyeTracker
 
 from game.gui.main import SAREnvGUI
 from game.sar.env import PickupVictimEnv
 from game.sar.utils import VictimPlacer
-
-from ixp.sensors.eye_tracker.tobii import TobiiEyeTracker
 
 try:
     from game.tutorial_env import TutorialEnv
@@ -60,9 +59,26 @@ with skip_run("skip", "tutorial") as check, check():
     gui.run()
 
 
-with skip_run('skip', 'tobii') as check, check():
-    tobii= TobiiEyeTracker()
+with skip_run("skip", "tobii") as check, check():
+    tobii = TobiiEyeTracker()
     tobii.initialize()
     tobii.calibrate()
 
 
+with skip_run("run", "tobii") as check, check():
+    from dotenv import load_dotenv
+
+    load_dotenv()
+    from llama_index.core.llms import ChatMessage
+    from llama_index.llms.google_genai import GoogleGenAI
+
+    messages = [
+        ChatMessage(
+            role="system", content="You are a pirate with a colorful personality"
+        ),
+        ChatMessage(role="user", content="Tell me a story"),
+    ]
+    llm = GoogleGenAI(model="gemini-2.5-flash")
+    resp = llm.chat(messages)
+
+    print(resp)

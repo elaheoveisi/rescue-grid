@@ -1,8 +1,7 @@
 from pathlib import Path
 
-import numpy as np
 import pygame
-from pygame_gui.elements import UIImage, UILabel, UIPanel
+from pygame_gui.elements import UIImage, UILabel, UIPanel, UITextBox
 
 
 class InfoPanel:
@@ -116,15 +115,30 @@ class InfoPanel:
         )
 
         compass_size = panel_width // 3
-        cx_offset = (panel_width - compass_size) // 2
-        raw = pygame.image.load(str(Path(__file__).parent / "compass.png")).convert_alpha()
+        raw = pygame.image.load(
+            str(Path(__file__).parent / "compass.png")
+        ).convert_alpha()
         rgb = pygame.surfarray.pixels3d(raw)
         rgb[:] = 255 - rgb
         del rgb
-        compass_surface = pygame.transform.smoothscale(raw, (compass_size, compass_size))
+        compass_surface = pygame.transform.smoothscale(
+            raw, (compass_size, compass_size)
+        )
         self.compass_image = UIImage(
-            relative_rect=pygame.Rect(cx_offset, 10, compass_size, compass_size),
+            relative_rect=pygame.Rect(PADDING_X, 10, compass_size, compass_size),
             image_surface=compass_surface,
+            manager=manager,
+            container=self.panel,
+            anchors={"top": "top", "top_target": self.nav_header},
+        )
+
+        # Controls beside the compass
+        controls_x = PADDING_X + compass_size + 50
+        controls_width = panel_width - controls_x - 10
+        controls_html = "Arrows → Move / Turn<br>Tab → Pick up<br>Shift → Drop Item<br>Space → Open door"
+        UITextBox(
+            html_text=controls_html,
+            relative_rect=pygame.Rect(controls_x, 10, controls_width, compass_size),
             manager=manager,
             container=self.panel,
             anchors={"top": "top", "top_target": self.nav_header},
