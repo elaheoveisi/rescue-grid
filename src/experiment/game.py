@@ -143,30 +143,30 @@ class SARGame(Task):
             ),
             order=2,
         )
-        block.add_trial(
-            SARGameTrial(
-                "trial_sparse_gemini",
-                {
-                    **config,
-                    "prompt_type": "sparse",
-                    "provider": "gemini",
-                    "model": gemini_model,
-                },
-            ),
-            order=3,
-        )
-        block.add_trial(
-            SARGameTrial(
-                "trial_detailed_gemini",
-                {
-                    **config,
-                    "prompt_type": "detailed",
-                    "provider": "gemini",
-                    "model": gemini_model,
-                },
-            ),
-            order=4,
-        )
+        # block.add_trial(
+        #     SARGameTrial(
+        #         "trial_sparse_gemini",
+        #         {
+        #             **config,
+        #             "prompt_type": "sparse",
+        #             "provider": "gemini",
+        #             "model": gemini_model,
+        #         },
+        #     ),
+        #     order=3,
+        # )
+        # block.add_trial(
+        #     SARGameTrial(
+        #         "trial_detailed_gemini",
+        #         {
+        #             **config,
+        #             "prompt_type": "detailed",
+        #             "provider": "gemini",
+        #             "model": gemini_model,
+        #         },
+        #     ),
+        #     order=4,
+        # )
         self.add_block(block)
 
     def get_data_signature(self) -> dict[str, Any]:

@@ -1,104 +1,125 @@
 from pathlib import Path
 
+import pandas as pd
 import yaml
-from game.sar.observations import FAKE_VICTIM, LAVA, VICTIM, cam_bounds, decode_door, is_door, is_key
+from game.sar.observations import (
+    FAKE_VICTIM,
+    LAVA,
+    VICTIM,
+    WALL,
+    cam_bounds,
+    decode_door,
+    decode_key,
+    is_door,
+    is_key,
+)
+
+from .pathfinding import query_all_objects
 
 _DIR_NAMES = {0: "East", 1: "South", 2: "West", 3: "North"}
-_DIR_CHARS = {0: ">", 1: "v", 2: "<", 3: "^"}
-# (dx, dy) for the cell directly ahead per facing direction
-_DIR_AHEAD = {0: (1, 0), 1: (0, 1), 2: (-1, 0), 3: (0, -1)}
-_WALL = 1
+_EMPTY = 0
+_REWARD = {"victim": "+1.0", "key": "0", "door": "0"}
+_SORT_PRIORITY = {("Yes", "Yes"): 0, ("Yes", "No"): 1, ("No", "Yes"): 2, ("No", "No"): 3}
 
 
-def _door_symbol(cell: int) -> str:
-    d = decode_door(cell)
-    if d["is_open"]:
-        return "O"
-    if d["is_locked"]:
-        return "L"
-    return "D"
+def _room(x: int, y: int, room_size: int) -> str:
+    rs = max(room_size - 1, 1)
+    return f"({y // rs},{x // rs})"
 
 
-def _front_cell_desc(obs: dict) -> str:
-    dx, dy = _DIR_AHEAD[obs["agent_dir"]]
-    fx, fy = obs["agent_x"] + dx, obs["agent_y"] + dy
-    grid = obs["grid"]
-    if not (0 <= fy < len(grid) and 0 <= fx < len(grid[0])):
-        return "wall"
-    cell = int(grid[fy][fx])
-    if cell == 0:
-        return "empty"
-    if cell == _WALL:
-        return "wall"
-    if cell == LAVA:
-        return "lava"
-    if cell == VICTIM:
-        return "victim"
-    if cell == FAKE_VICTIM:
-        return "fake victim"
-    if is_key(cell):
-        return "key"
-    if is_door(cell):
-        d = decode_door(cell)
-        state = "open" if d["is_open"] else ("locked" if d["is_locked"] else "closed")
-        return f"{d['color']} door [{state}]"
-    return "unknown"
-
-
-def _camera_view(obs: dict) -> str:
+def _build_table(obs: dict) -> str:
     grid = obs["grid"]
     ax, ay = obs["agent_x"], obs["agent_y"]
-    adir = obs["agent_dir"]
+    room_size = obs["room_size"]
     cx0, cy0, cx1, cy1 = cam_bounds(obs)
+    bfs_results = query_all_objects(obs)
 
     rows = []
-    for y in range(cy0, cy1):
-        row = []
-        for x in range(cx0, cx1):
-            if x == ax and y == ay:
-                row.append(_DIR_CHARS.get(adir, "A"))
+    counters: dict[str, int] = {}
+
+    for y, row_cells in enumerate(grid):
+        for x, cell in enumerate(row_cells):
+            cell = int(cell)
+            if cell in (_EMPTY, WALL, LAVA, FAKE_VICTIM) or (x == ax and y == ay):
                 continue
-            if y < 0 or y >= len(grid) or x < 0 or x >= len(grid[0]):
-                row.append("#")
-                continue
-            cell = int(grid[y][x])
-            if cell == 0:
-                row.append("E")
-            elif cell == _WALL:
-                row.append("W")
-            elif cell == LAVA:
-                row.append("R")
-            elif cell == VICTIM:
-                row.append("V")
+
+            if cell == VICTIM:
+                kind, label_base = "victim", "Victim"
             elif cell == FAKE_VICTIM:
-                row.append("F")
+                kind, label_base = "fake_victim", "FakeVictim"
             elif is_key(cell):
-                row.append("K")
+                kind, label_base = "key", f"{decode_key(cell)['color'].capitalize()}Key"
             elif is_door(cell):
-                row.append(_door_symbol(cell))
+                kind, label_base = "door", f"{decode_door(cell)['color'].capitalize()}Door"
             else:
-                row.append("E")
-        rows.append("".join(row))
-    return "\n".join(rows)
+                continue
+
+            counters[label_base] = counters.get(label_base, 0) + 1
+            pr = bfs_results.get((x, y))
+            reachable = "Yes" if (pr and pr.reachable) else "No"
+            path_length = pr.path_length if (pr and pr.path_length is not None) else None
+
+            if kind == "door":
+                d = decode_door(cell)
+                status = "Open" if d["is_open"] else ("Locked" if d["is_locked"] else "Closed")
+                tool = f"{d['color']} key" if d["is_locked"] else "None"
+            elif kind == "victim":
+                status, tool = "Alive", "None"
+            elif kind == "fake_victim":
+                status, tool = "Decoy", "None"
+            else:
+                status, tool = "Available", "None"
+
+            visible = "Yes" if cx0 <= x < cx1 and cy0 <= y < cy1 else "No"
+            rows.append({
+                "Object": f"{label_base}{counters[label_base]}",
+                "Room": _room(x, y, room_size),
+                "Visible": visible,
+                "Reachable": reachable,
+                "Reward": _REWARD.get(kind, "0"),
+                "Status": status,
+                "ToolRequired": tool,
+                "PathLength": path_length if path_length is not None else "N/A",
+                "_sort_priority": _SORT_PRIORITY.get((reachable, visible), 3),
+                "_sort_path": path_length if path_length is not None else 9999,
+            })
+
+    if not rows:
+        return "(no objects on map)"
+
+    df = pd.DataFrame(rows)
+    df = df.sort_values(["_sort_priority", "_sort_path"]).drop(
+        columns=["_sort_priority", "_sort_path"]
+    )
+    return df.to_markdown(index=False)
 
 
 def build_obs(obs: dict) -> str:
-    carrying = obs["carrying"]
-    inv = f"{carrying} key" if carrying else "nothing"
+    inv = f"{obs['carrying']} key" if obs["carrying"] else "nothing"
     ax, ay = obs["agent_x"], obs["agent_y"]
-    lines = [
-        f"Agent: ({ax},{ay}) facing {_DIR_NAMES.get(obs['agent_dir'], '?')}  |  Carrying: {inv}  |  Victims remaining: {obs['remaining_victims']}",
-        f"Front cell: {_front_cell_desc(obs)}",
+    room_size = obs["room_size"]
+    agent_room = _room(ax, ay, room_size)
+    return "\n".join([
+        f"Agent: room {agent_room} facing {_DIR_NAMES.get(obs['agent_dir'], '?')} | Carrying: {inv} | Victims remaining: {obs['remaining_victims']} | Steps left: {obs['max_steps'] - obs['step_count']}",
         "",
-        "Camera view (north=up):",
-        "Legend: W wall  E empty  > v < ^ agent  V victim  F fake  K key  L locked-door  D closed-door  O open-door  R lava",
-        _camera_view(obs),
-    ]
-    return "\n".join(lines)
+        "Map objects:",
+        _build_table(obs),
+    ])
 
 
-def build_prompt(obs: dict, prompt_type: str = "decompose") -> str:
+def _build_grid_info(obs: dict) -> str:
+    n_rows = obs["num_rows"]
+    n_cols = obs["num_cols"]
+    mid_r, mid_c = n_rows // 2, n_cols // 2
+    return (
+        f"There are {n_rows * n_cols} rooms arranged in a {n_rows}×{n_cols} grid. "
+        f"({0},{mid_c}) is North, ({n_rows-1},{mid_c}) is South, "
+        f"({mid_r},{0}) is West, ({mid_r},{n_cols-1}) is East."
+    )
+
+
+def build_prompt(obs: dict) -> str:
     path = Path(__file__).parent / "prompts.yaml"
     with open(path) as f:
         cfg = yaml.safe_load(f)
-    return cfg["prompt"].format(obs=build_obs(obs))
+    return cfg["prompt"].format(obs=build_obs(obs), grid_info=_build_grid_info(obs))

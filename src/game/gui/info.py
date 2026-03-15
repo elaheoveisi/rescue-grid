@@ -1,5 +1,8 @@
+from pathlib import Path
+
+import numpy as np
 import pygame
-from pygame_gui.elements import UILabel, UIPanel
+from pygame_gui.elements import UIImage, UILabel, UIPanel
 
 
 class InfoPanel:
@@ -100,6 +103,31 @@ class InfoPanel:
             manager=manager,
             container=self.panel,
             anchors={"top": "top", "top_target": self.steps_label},
+        )
+
+        # Navigation section
+        self.nav_header = UILabel(
+            relative_rect=pygame.Rect(PADDING_X, 20, content_width, 30),
+            text="NAVIGATION",
+            manager=manager,
+            container=self.panel,
+            object_id="#section_header",
+            anchors={"top": "top", "top_target": self.inventory_label},
+        )
+
+        compass_size = panel_width // 3
+        cx_offset = (panel_width - compass_size) // 2
+        raw = pygame.image.load(str(Path(__file__).parent / "compass.png")).convert_alpha()
+        rgb = pygame.surfarray.pixels3d(raw)
+        rgb[:] = 255 - rgb
+        del rgb
+        compass_surface = pygame.transform.smoothscale(raw, (compass_size, compass_size))
+        self.compass_image = UIImage(
+            relative_rect=pygame.Rect(cx_offset, 10, compass_size, compass_size),
+            image_surface=compass_surface,
+            manager=manager,
+            container=self.panel,
+            anchors={"top": "top", "top_target": self.nav_header},
         )
 
         # Status message (anchored to bottom)

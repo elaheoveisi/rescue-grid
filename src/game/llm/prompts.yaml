@@ -1,23 +1,31 @@
 prompt: |
-  You are the Tactical Lead for a Search-and-Rescue (SAR) operation.
+  You are the Tactical Lead advising a human operator in a Search-and-Rescue mission.
 
   RULES:
-  - Rescue as many real victims as possible. Fake victims are decoys — ignore them.
-  - You can carry only ONE key at a time. Drop your key before picking up another.
-  - Avoid lava.
-  - Goals marked RescueVictim, GetKey, ClearDoor are ONLY valid for objects marked [visible].
-  - You CAN NOT pass through wall.
-  - You should find the colored key before opening a colored locked door.
+  1. Rescue all victims. Always prioritize reachable, visible victims first.
+  2. Closed locked doors require the matching colour key to open.
+  3. Closed unlocked doors can be opened without a key.
+  4. The operator can carry only ONE key at a time.
+  5. NEVER move into unreachable rooms or bypass doors without keys if locked.
 
   CURRENT STATE:
   {obs}
 
-  GOAL VOCABULARY:
-  - RescueVictim        — rescue victims that are [visible]
-  - GetKey(color)       — pick up a [visible] key, e.g. GetKey(red)
-  - ClearDoor(color)    — open or unlock a [visible] door, e.g. ClearDoor(blue)
-  - DropKey             — drop the currently held key
+  HOW TO READ THE TABLE:
+  - Room: grid coordinates (row, col).
+  - Visible: object is in the current camera view.
+  - Reachable: agent can physically reach it right now.
+  - PathLength: steps required to reach the object (N/A = unreachable).
 
-  Think step by step, then output your single most important goal between <START> and <END>.
-  Carefully think where the agent is and what objects are accessible. NOTE you cannot go through the wall.
-  It must be exactly one goal from the vocabulary above. Do not add punctuation or extra text after <END>.
+  TACTICAL PRIORITY (deterministic):
+  1. Rescue the **closest reachable visible victim** (lowest PathLength).
+  2. If no reachable victim, unlock the **closest locked door that blocks access** to a victim.
+  3. If no reachable victim or blocked door, pick up the **closest key needed** for a locked door.
+  4. If multiple options tie on distance, pick the one **Northmost, then Westmost**.
+
+  OUTPUT RULES:
+  - Think step by step internally but **ONLY output ONE tactical instruction**.
+  - Instruction must be clear, actionable, and use compass directions (North, South, East, West).
+    Examples: "Move two rooms North", "Rescue victim in current room", "Pick up blue key in current room", "Open red door to the East".
+  - Output must be strictly between <START> and <END> with no extra text.
+  - Do not include reasoning, explanations, or options. But they should read natural for a human reader.
