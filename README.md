@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🚁 SAR-MiniGrid
+# 🚁 Rescue-Grid
 
 ### *Search. Navigate. Rescue.*
 
@@ -16,11 +16,11 @@ Built on top of [MiniGrid](https://github.com/Farama-Foundation/Minigrid) 🎮
 
 ---
 
-## 🎯 What is SAR-MiniGrid?
+## 🎯 What is Rescue-Grid?
 
 Imagine a building on fire. Victims are trapped. Some rooms are locked. Lava (yes, lava!) blocks your path. Your mission? **Save everyone before time runs out.**
 
-SAR-MiniGrid is a reinforcement learning environment that puts your agent in high-stakes rescue scenarios. Can your AI learn to be a hero?
+Rescue-Grid is a reinforcement learning environment that puts your agent in high-stakes rescue scenarios. Can your AI learn to be a hero?
 
 ## ✨ Features
 
@@ -39,8 +39,8 @@ SAR-MiniGrid is a reinforcement learning environment that puts your agent in hig
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/sar-minigrid.git
-cd sar-minigrid
+git clone https://github.com/yourusername/Rescue-Grid.git
+cd Rescue-Grid
 
 # Install dependencies
 pip install -r requirements.txt
@@ -131,6 +131,6 @@ MIT License - Feel free to use this for your research!
 
 **Built with ❤️ for the RL research community**
 
-*Remember: In SAR-MiniGrid, heroes aren't born — they're trained!*
+*Remember: In Rescue-Grid, heroes aren't born — they're trained!*
 
 </div>
