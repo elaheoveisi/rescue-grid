@@ -87,16 +87,16 @@ detailed_suffix: |
   Use compass directions (North, South, East, West) only when helpful.
 
   Good examples:
-  "There's a survivor nearby — head over and assist them. Helping them clears the closest rescue."
-  "Grab the red key to your South. You'll need it to unlock the door blocking the next area."
-  "Push through the yellow door to open up the next section. There may be survivors inside."
-  "No survivors reachable yet — explore toward the North and see if a new path opens up."
+  <START> We have survivors trapped behind the locked door towards north. Locate the yellow key and bring it back to clear the path for extraction. Keep your movements precise to avoid any environmental hazards. <END>
+
+  <START> The rooms on west side are locked and we need you to open the door to allow the rescue team inside. Search the immediate area for a matching access key to bypass the lock. Once the path is clear, move in and rescue the victims. <END>
+
+  <START> Multiple victims are trapped behind the green door on the western edge of the map. Secure the matching key from the northern side and proceed to the open the door. We need that sector cleared before the structure destabilizes. <END>
 
   OUTPUT RULES
-  - Output 2–3 natural sentences.
+  - Output 3–4 natural sentences.
   - No bullet points, lists, or labels.
   - No visible reasoning.
-  - Keep the message concise enough to sound natural over radio.
   - The response must contain exactly one <START> and one <END>.
   - Wrap the response strictly between <START> and <END> on the same line, like this:
   <START> your briefing here <END>

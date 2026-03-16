@@ -30,6 +30,8 @@ def ask(
     provider: str = "openai",
     prompt_type: str = "sparse",
 ) -> str:
+    if provider == "dummy":
+        return "Currently, no commands are available."
     llm = get_llm(model, provider)
     prompt = build_prompt(obs, prompt_type=prompt_type)
     # Gemini requires at least one USER message; SYSTEM-only crashes with pop from empty list.
@@ -39,13 +41,4 @@ def ask(
     ]
     response = llm.chat(messages)
     raw = response.message.content
-    if raw is None:
-        # Gemini returns blocks instead of a content string
-        raw = "".join(
-            b.text for b in (response.message.blocks or []) if hasattr(b, "text")
-        )
-    if "<START>" in raw and "<END>" in raw:
-        extracted = raw.split("<START>")[1].split("<END>")[0].strip()
-    else:
-        extracted = raw.strip()
-    return clean_response(extracted)
+    return clean_response(raw)

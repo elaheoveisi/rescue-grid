@@ -213,6 +213,7 @@ class PickupVictimEnv(SARLevelGen):
 
     def reset(self, **kwargs):
         """Reset the environment and all stats."""
+        self.camera.reset()
         self.saved_victims = 0
         self.fixed_max_steps = calculate_max_steps(
             room_size=self.room_size,

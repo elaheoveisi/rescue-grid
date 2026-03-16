@@ -10,7 +10,6 @@ class ChatPanel:
         self.manager = manager
         self.panel_width = panel_width
         self.panel_height = panel_height
-        self.messages = []
 
         # Create main panel
         self.panel = UIPanel(
@@ -38,15 +37,10 @@ class ChatPanel:
             anchors={"top": "top", "top_target": self.title},
         )
 
-    def add_message(self, sender, text, color="#DCDCDC"):
-        """Replace current message with the latest one."""
-        self.messages = [f"<font color='{color}'><b>{sender}:</b> {text}</font>"]
-        self._refresh()
+    def set_message(self, sender, text, color="#6495ED"):
+        """Display a message in the chat, replacing any previous one."""
+        self.text_box.set_text(f"<font color='{color}'><b>{sender}:</b> {text}</font>")
 
-    def _refresh(self):
-        self.text_box.set_text(self.messages[0] if self.messages else "")
-
-    def clear_messages(self):
-        """Clear all messages from the chat."""
-        self.messages.clear()
+    def clear_message(self):
+        """Clear the chat display."""
         self.text_box.set_text("")

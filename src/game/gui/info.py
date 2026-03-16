@@ -7,16 +7,15 @@ from pygame_gui.elements import UIImage, UILabel, UIPanel, UITextBox
 class InfoPanel:
     """Info panel using pygame_gui built-in elements."""
 
-    def __init__(self, manager, env_size, panel_width):
+    def __init__(self, manager, x_offset, panel_width):
         """Initialize the info panel with pygame_gui elements."""
         self.manager = manager
-        self.panel_x = env_size
+        self.panel_x = x_offset
         self.panel_width = panel_width
-        self.env_size = env_size
 
         # Create main panel
         self.panel = UIPanel(
-            relative_rect=pygame.Rect(self.panel_x, 0, panel_width, env_size),
+            relative_rect=pygame.Rect(self.panel_x, 0, panel_width, panel_width),
             manager=manager,
         )
 
@@ -135,7 +134,7 @@ class InfoPanel:
         # Controls beside the compass
         controls_x = PADDING_X + compass_size + 50
         controls_width = panel_width - controls_x - 10
-        controls_html = "Arrows → Move / Turn<br>Tab → Pick up<br>Shift → Drop Item<br>Space → Open door"
+        controls_html = "<font size=7>Arrows → Move / Turn<br>Tab → Pick up<br>Shift → Drop Item<br>Space → Open door<br>Alt → Ask Guidance</font>"
         UITextBox(
             html_text=controls_html,
             relative_rect=pygame.Rect(controls_x, 10, controls_width, compass_size),
@@ -159,12 +158,12 @@ class InfoPanel:
 
     def _update_victims_section(self, mission_status):
         """Update the victims section labels."""
-        saved = mission_status.get("saved_victims", 0)
+        rescued = mission_status.get("saved_victims", 0)
         remaining = mission_status.get("remaining_victims", 0)
 
-        self.rescued_label.set_text(f"Rescued: {saved}")
+        self.rescued_label.set_text(f"Rescued: {rescued}")
         self.remaining_label.set_text(f"Remaining: {remaining}")
-        self.score_label.set_text(f"Score: {saved * 10}")
+        self.score_label.set_text(f"Score: {rescued * 10}")
 
         # Update remaining color based on count
         if remaining > 0:

@@ -21,6 +21,7 @@ class User(ManualControl):
         self.total_steps = 0
         self.episode_ended = False
         self.on_reset = None
+        self.steps_since_last_llm = 0
 
     def step(self, action: Actions):
         self.obs, reward, terminated, truncated, info = self.env.step(action)
@@ -29,6 +30,7 @@ class User(ManualControl):
         self.terminated = bool(terminated)
         self.truncated = bool(truncated)
         self.total_steps += 1
+        self.steps_since_last_llm += 1
         if terminated or truncated:
             self.episode_ended = True
             self.reset()
@@ -83,4 +85,5 @@ class User(ManualControl):
         self.last_llm_response = ask(
             self.obs, model=self.model, provider=self.provider, prompt_type=self.prompt_type
         )
+        self.steps_since_last_llm = 0
         return self.last_llm_response

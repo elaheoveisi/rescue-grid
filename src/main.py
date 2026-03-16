@@ -20,7 +20,7 @@ with open(config_path, "r") as file:
 with skip_run("skip", "sar_gui_advanced") as check, check():
     env = build_sar_env(screen_size=800, num_rows=3, num_cols=3, locked_room_prob=0.5)
     env.reset()
-    gui = SAREnvGUI(env, fullscreen=False)
+    gui = SAREnvGUI(env, config={"fullscreen": False})
     gui.run()
 
 
@@ -37,7 +37,7 @@ with skip_run("skip", "tutorial") as check, check():
     )
 
     env.reset()
-    gui = SAREnvGUI(env, fullscreen=True)
+    gui = SAREnvGUI(env, config={"fullscreen": True})
     gui.run()
 
 

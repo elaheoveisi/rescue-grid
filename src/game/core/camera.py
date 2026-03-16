@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Tuple
 
 import numpy as np
 
@@ -9,7 +8,7 @@ import numpy as np
 class CameraConfig:
     """Configuration for camera behavior."""
 
-    view_tiles: Tuple[int, int] = (12, 12)
+    view_tiles: tuple[int, int] = (12, 12)
     margin: int = 3
     tile_size: int = 64
 
@@ -92,21 +91,21 @@ class EdgeFollowCamera(CameraStrategy):
         margin = self.config.margin
 
         # Calculate dead-zone boundaries
-        left = self.top_x + margin
-        right = self.top_x + view_w - margin - 1
-        top = self.top_y + margin
-        bottom = self.top_y + view_h - margin - 1
+        dead_zone_left = self.top_x + margin
+        dead_zone_right = self.top_x + view_w - margin - 1
+        dead_zone_top = self.top_y + margin
+        dead_zone_bottom = self.top_y + view_h - margin - 1
 
         # Move camera if agent exits dead-zone
-        if agent_x < left:
-            self.top_x -= left - agent_x
-        elif agent_x > right:
-            self.top_x += agent_x - right
+        if agent_x < dead_zone_left:
+            self.top_x -= dead_zone_left - agent_x
+        elif agent_x > dead_zone_right:
+            self.top_x += agent_x - dead_zone_right
 
-        if agent_y < top:
-            self.top_y -= top - agent_y
-        elif agent_y > bottom:
-            self.top_y += agent_y - bottom
+        if agent_y < dead_zone_top:
+            self.top_y -= dead_zone_top - agent_y
+        elif agent_y > dead_zone_bottom:
+            self.top_y += agent_y - dead_zone_bottom
 
         # Clamp to grid bounds
         self.top_x = max(0, min(self.top_x, grid_width - view_w))

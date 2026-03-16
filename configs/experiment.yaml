@@ -4,12 +4,13 @@ fullscreen: &fullscreen true
 game:
   display: *display
   fullscreen: *fullscreen
-  min_steps: 10
+  min_steps_percent: 80
   prompt_type: sparse
   openai_model: gpt-5-mini-2025-08-07
   google_model: gemini-2.5-flash
   num_rows: 3
   num_cols: 3
+  llm_nudge_interval: 50
 
 vs:
   display: *display

@@ -25,7 +25,7 @@ class SARGameTrial(LSLTrial):
     ----------
     parameters : dict
         May include ``prompt_type`` ("sparse" | "detailed"),
-        ``model`` (e.g. "gpt-4o-mini"), and ``provider`` ("openai" | "gemini").
+        ``model`` (e.g. "gpt-4o-mini"), and ``provider`` ("openai" | "google" | "dummy").
     """
 
     def __init__(self, trial_id: str, parameters: dict[str, Any]):
@@ -33,23 +33,15 @@ class SARGameTrial(LSLTrial):
         self.gui = None
 
     def initialize(self) -> None:
+        config = self.parameters
         screen_height = pygame.display.Info().current_h
         env = build_sar_env(
             screen_size=screen_height,
-            num_rows=self.parameters.get("num_rows"),
-            num_cols=self.parameters.get("num_cols"),
+            num_rows=config.get("num_rows"),
+            num_cols=config.get("num_cols"),
         )
-        os.environ["SDL_VIDEO_FULLSCREEN_DISPLAY"] = str(
-            self.parameters.get("display", 0)
-        )
-        self.gui = SAREnvGUI(
-            env,
-            fullscreen=self.parameters.get("fullscreen", False),
-            prompt_type=self.parameters.get("prompt_type", "detailed"),
-            model=self.parameters.get("model", "gpt-4o-mini"),
-            provider=self.parameters.get("provider", "openai"),
-            display=self.parameters.get("display", 0),
-        )
+        os.environ["SDL_VIDEO_FULLSCREEN_DISPLAY"] = str(config.get("display", 0))
+        self.gui = SAREnvGUI(env, config=config)
         self.gui.info_panel.set_trial_name(self.trial_id)
         self.gui.reset()
         self.gui.running = True
@@ -78,11 +70,12 @@ class SARGameTrial(LSLTrial):
         return [ujson.dumps(state)]
 
     def execute(self) -> None:
-        min_steps = self.parameters.get("min_steps", 500)
+        min_steps_percent = self.parameters.get("min_steps_percent", 80) / 100
+        max_steps = self.gui.user.env.max_steps
 
         while self.gui.running:
             user = self.gui.user
-            enough = user.total_steps >= min_steps
+            enough = user.total_steps >= int(min_steps_percent * max_steps)
 
             if enough and user.episode_ended:
                 self.gui.close()
@@ -113,41 +106,29 @@ class SARGame(Task):
         openai_model = config.get("openai_model", "gpt-4o-mini")
         google_model = config.get("google_model", "gemini-1.5-flash")
         block = Block("sar_game_block")
-        # block.add_trial(
-        #     SARGameTrial(
-        #         "trial_sparse_openai",
-        #         {
-        #             **config,
-        #             "prompt_type": "sparse",
-        #             "provider": "openai",
-        #             "model": openai_model,
-        #         },
-        #     ),
-        #     order=1,
-        # )
-        # block.add_trial(
-        #     SARGameTrial(
-        #         "trial_detailed_openai",
-        #         {
-        #             **config,
-        #             "prompt_type": "detailed",
-        #             "provider": "openai",
-        #             "model": openai_model,
-        #         },
-        #     ),
-        #     order=2,
-        # )
         block.add_trial(
             SARGameTrial(
-                "trial_sparse_gemini",
+                "trial_detailed_openai",
+                {
+                    **config,
+                    "prompt_type": "detailed",
+                    "provider": "openai",
+                    "model": openai_model,
+                },
+            ),
+            order=1,
+        )
+        block.add_trial(
+            SARGameTrial(
+                "trial_dummy",
                 {
                     **config,
                     "prompt_type": "sparse",
-                    "provider": "google",
+                    "provider": "dummy",
                     "model": google_model,
                 },
             ),
-            order=3,
+            order=2,
         )
         block.add_trial(
             SARGameTrial(
@@ -159,7 +140,7 @@ class SARGame(Task):
                     "model": google_model,
                 },
             ),
-            order=4,
+            order=3,
         )
         self.add_block(block)
 

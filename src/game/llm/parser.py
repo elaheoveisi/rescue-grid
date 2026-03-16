@@ -31,6 +31,10 @@ _DOUBLE_ARTICLE_RE = re.compile(r"\bthe\s+the\b", re.IGNORECASE)
 
 
 def clean_response(text: str) -> str:
+    if "<START>" in text and "<END>" in text:
+        text = text.split("<START>")[1].split("<END>")[0].strip()
+    else:
+        text = text.strip()
     text = _FAKE_VICTIM_RE.sub("a decoy", text)
     text = _VICTIM_NUMBERED_RE.sub("a victim", text)
     text = _COLOR_OBJ_RE.sub(

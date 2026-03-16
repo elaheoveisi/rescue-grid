@@ -32,19 +32,12 @@ class SARTutorial(Task):
             agent_pov=True,
         )
         os.environ["SDL_VIDEO_FULLSCREEN_DISPLAY"] = str(self.config.get("display", 0))
-        self.gui = SAREnvGUI(
-            env,
-            fullscreen=self.config.get("fullscreen", False),
-            prompt_type=self.config.get("prompt_type", "detailed"),
-            model=self.config.get("model", "gpt-4o-mini"),
-            provider=self.config.get("provider", "openai"),
-            display=self.config.get("display", 0),
-        )
+        self.gui = SAREnvGUI(env, config=self.config)
 
         def _show_mission():
             mission = getattr(self.gui.user.env, "mission", None)
             if mission:
-                self.gui.chat_panel.add_message("Mission", mission)
+                self.gui.chat_panel.set_message("Mission", mission)
 
         self.gui.user.on_reset = _show_mission
         self.gui.reset()
