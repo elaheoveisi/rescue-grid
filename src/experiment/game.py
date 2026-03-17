@@ -11,6 +11,33 @@ from game.gui.main import SAREnvGUI
 from game.sar.env import build_sar_env
 
 
+def _show_break_screen(display: int = 0, recalibrate: bool = False) -> None:
+    """Fullscreen PsychoPy break screen; waits for SPACE, then optionally recalibrates eye tracker."""
+
+    from psychopy import event, visual
+
+    win = visual.Window(
+        fullscr=True, screen=display, color="black", units="norm", checkTiming=False
+    )
+    visual.TextStim(
+        win,
+        text="Great work! Take a short break.\n\nPress SPACE when you are ready to continue.",
+        color="white",
+        height=0.08,
+        wrapWidth=1.6,
+    ).draw()
+    win.flip()
+    event.waitKeys(keyList=["space"])
+    win.close()
+
+    if recalibrate:
+        from ixp.sensors.eye_tracker.tobii import TobiiEyeTracker
+
+        tobii = TobiiEyeTracker()
+        tobii.initialize()
+        tobii.calibrate(screen=display)
+
+
 class SARGameTrial(LSLTrial):
     """LSL-streaming trial for the SAR rescue game.
 
@@ -86,8 +113,8 @@ class SARGameTrial(LSLTrial):
                     if enough:
                         self.gui.close()
                     break
-                self.gui.manager.process_events(event)
                 self.gui.handle_user_input(event)
+                self.gui.manager.process_events(event)
 
             if self.gui.running:
                 self.gui.render(self.gui.user.get_frame())
@@ -97,7 +124,7 @@ class SARGameTrial(LSLTrial):
 class SARGame(Task):
     """SAR game task for the ixp experiment framework.
 
-    One block with 4 trials (sparse×openai, detailed×openai, sparse×gemini,
+    One block with 3 trials (baseline, detailed×openai,
     detailed×gemini). Trial order is randomized at execution time.
     """
 
@@ -155,6 +182,13 @@ class SARGame(Task):
         }
 
     def execute(self, order: str = "random") -> list:
-        super().execute(order)
+        display = self.config.get("display", 0)
+        recalibrate = self.config.get("between_trail_recalibrate_eye_tracker", False)
+        for block in self.blocks:
+            block.execute(
+                order,
+                lsl_stream=self.lsl_stream,
+                after_trial_fn=lambda: _show_break_screen(display, recalibrate),
+            )
         pygame.quit()
         return []

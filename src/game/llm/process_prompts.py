@@ -137,10 +137,16 @@ def _build_grid_info(obs: dict) -> str:
     )
 
 
-def build_prompt(obs: dict, prompt_type: str = "sparse") -> str:
+def _load_prompts() -> dict:
     path = Path(__file__).parent / "prompts.yaml"
     with open(path) as f:
-        cfg = yaml.safe_load(f)
+        return yaml.safe_load(f)
+
+
+_PROMPTS: dict = _load_prompts()
+
+
+def build_prompt(obs: dict, prompt_type: str = "sparse") -> str:
     suffix_key = "detailed_suffix" if prompt_type == "detailed" else "sparse_suffix"
-    template = cfg["preamble"] + cfg[suffix_key]
+    template = _PROMPTS["preamble"] + _PROMPTS[suffix_key]
     return template.format(obs=build_obs(obs), grid_info=_build_grid_info(obs))

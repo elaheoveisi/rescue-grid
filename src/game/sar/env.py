@@ -15,7 +15,7 @@ def build_sar_env(
     num_rows: int = 3,
     num_cols: int = 3,
     num_fake_victims: int = 5,
-    num_real_victims: int = 3,
+    num_real_victims: int = 2,
     important_victim: str = "down",
     lava_per_room: int = 2,
     locked_room_prob: float = 0.35,
@@ -132,18 +132,9 @@ class PickupVictimEnv(SARLevelGen):
         return len(self._find_objects_by_type(obj_types))
 
     def _find_objects_by_type(self, obj_types):
-        """
-        Utility method to find all objects of specific types on the grid.
-
-        Args:
-            obj_types: Tuple of object types to find
-
-        Returns:
-            list: List of objects matching the types
-        """
         objects = []
-        for x in range(self.width):
-            for y in range(self.height):
+        for y in range(self.height):
+            for x in range(self.width):
                 obj = self.grid.get(x, y)
                 if isinstance(obj, obj_types):
                     objects.append(obj)
@@ -171,13 +162,10 @@ class PickupVictimEnv(SARLevelGen):
         else:
             status = "incomplete"
 
-        # Count remaining victims on the grid
-        remaining_victims = len(self.get_all_victims())
-
         return {
             "status": status,
             "saved_victims": self.saved_victims,
-            "remaining_victims": remaining_victims,
+            "remaining_victims": getattr(self, "total_victims", 0) - self.saved_victims,
         }
 
     def validate_instrs(self, instrs):
@@ -213,7 +201,6 @@ class PickupVictimEnv(SARLevelGen):
 
     def reset(self, **kwargs):
         """Reset the environment and all stats."""
-        self.camera.reset()
         self.saved_victims = 0
         self.fixed_max_steps = calculate_max_steps(
             room_size=self.room_size,
@@ -225,9 +212,8 @@ class PickupVictimEnv(SARLevelGen):
         self.max_steps = self.fixed_max_steps
         obs, info = super().reset(**kwargs)
         self.instrs.reset_verifier(self)
-        cam = getattr(self, "camera", None)
-        if cam is not None and hasattr(cam, "reset"):
-            cam.reset()
+        self.total_victims = self._count_objects_by_type(REAL_VICTIMS)
+        self.camera.reset()
         obs = self.observation.process_observation(obs, self)
         return obs, info
 

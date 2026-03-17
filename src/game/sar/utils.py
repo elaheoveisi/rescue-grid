@@ -27,6 +27,9 @@ class VictimPlacer:
             direction: Victim(direction, color="red") for direction in self.DIRECTIONS
         }
         self.important_victim = important_victim
+        self._non_important_victims = [
+            v for k, v in self.victims.items() if k != important_victim
+        ]
 
     def place_fake_victims(self, level_gen, i, j):
         """Place fake victims in a room using factory pattern."""
@@ -45,16 +48,9 @@ class VictimPlacer:
                 # Place real victims (num_real_victims per room)
                 for _ in range(self.num_real_victims):
                     if room.locked:
-                        # Always use important victim in locked rooms
                         victim_to_place = self.victims[self.important_victim]
                     else:
-                        # Randomly select from non-important victims in unlocked rooms
-                        non_important_victims = [
-                            v
-                            for k, v in self.victims.items()
-                            if k != self.important_victim
-                        ]
-                        victim_to_place = random.choice(non_important_victims)
+                        victim_to_place = random.choice(self._non_important_victims)
 
                     level_gen.place_in_room(i, j, victim_to_place)
 
@@ -90,18 +86,18 @@ class LavaPlacer:
             num_lava = self.lava_per_room
 
         placed = 0
-        consecutive_failures = 0
+        failures = 0
 
-        for _ in range(50):
+        for _ in range(num_lava * 10):
             if placed >= num_lava:
                 break
             try:
                 level_gen.place_in_room(i, j, Lava())
                 placed += 1
-                consecutive_failures = 0
+                failures = 0
             except Exception:
-                consecutive_failures += 1
-                if consecutive_failures >= 10:
+                failures += 1
+                if failures >= 10:
                     break  # Room is likely full
 
     def place_all(self, level_gen, num_rows, num_cols, skip_locked_rooms=False):

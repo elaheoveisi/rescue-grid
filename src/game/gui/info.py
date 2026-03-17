@@ -211,9 +211,13 @@ class InfoPanel:
         else:
             self.status_label.set_text("")
 
-    def render(self, env):
+    def render(self, obs, env):
         """Update the panel with current game state."""
-        mission_status = env.get_mission_status()
+        mission_status = {
+            "status": obs.get("mission_status", "incomplete"),
+            "saved_victims": obs.get("saved_victims", 0),
+            "remaining_victims": obs.get("remaining_victims", 0),
+        }
         self._update_victims_section(mission_status)
         self._update_time_and_inventory(env)
         self._update_status(mission_status)

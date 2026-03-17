@@ -88,7 +88,7 @@ class SAREnvGUI:
             game_surface, (self.game_size, self.game_size)
         )
         surface.blit(game_surface, (0, 0))
-        self.info_panel.render(self.user.env)
+        self.info_panel.render(self.user.obs or {}, self.user.env)
         time_delta = self.clock.tick(30) / 1000.0
         self.manager.update(time_delta)
         self.manager.draw_ui(surface)
