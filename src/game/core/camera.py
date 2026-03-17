@@ -8,7 +8,7 @@ import numpy as np
 class CameraConfig:
     """Configuration for camera behavior."""
 
-    view_tiles: tuple[int, int] = (12, 12)
+    view_tiles: tuple[int, int] = (8, 8)
     margin: int = 3
     tile_size: int = 64
 
@@ -135,3 +135,74 @@ class EdgeFollowCamera(CameraStrategy):
     def reset(self):
         """Reset camera state."""
         self.initialized = False
+
+
+class AgentFOVCamera(CameraStrategy):
+    """Shows only the agent's current room.
+
+    The crop is always room_size × room_size tiles (always square).
+    Walls between rooms naturally prevent the agent from seeing into
+    adjacent rooms — no additional fog-of-war mask is needed.
+    """
+
+    def __init__(self, config: CameraConfig = None):
+        self.config = config or CameraConfig()
+
+    def get_crop(self, grid, agent_pos, agent_dir, room=None, **_) -> np.ndarray:
+        ts = self.config.tile_size
+        full_img = grid.render(ts, agent_pos, agent_dir, highlight_mask=None)
+
+        if room is None:
+            return full_img
+
+        rx, ry = room.top
+        rw, rh = room.size
+        return full_img[ry * ts:(ry + rh) * ts, rx * ts:(rx + rw) * ts, :]
+
+    def reset(self):
+        pass
+
+
+class AgentConeCamera(AgentFOVCamera):
+    """Shows the agent's current room with a forward-cone blackout.
+
+    Extends AgentFOVCamera: same room crop, but tiles outside MiniGrid's
+    built-in forward visibility cone are rendered black.
+    """
+
+    def _visibility_mask(self, env, grid_width: int, grid_height: int) -> np.ndarray:
+        """Return a (grid_width, grid_height) bool array using MiniGrid's FOV cone."""
+        _, vis_mask = env.gen_obs_grid()
+        view_size = env.agent_view_size
+        f_vec = env.dir_vec
+        r_vec = env.right_vec
+        top_left = env.agent_pos + f_vec * (view_size - 1) - r_vec * (view_size // 2)
+
+        visible = np.zeros((grid_width, grid_height), dtype=bool)
+        for vis_j in range(view_size):
+            for vis_i in range(view_size):
+                if not vis_mask[vis_i, vis_j]:
+                    continue
+                wx, wy = top_left - f_vec * vis_j + r_vec * vis_i
+                wx, wy = int(wx), int(wy)
+                if 0 <= wx < grid_width and 0 <= wy < grid_height:
+                    visible[wx, wy] = True
+        return visible
+
+    def get_crop(self, grid, agent_pos, agent_dir, room=None, grid_width=None, grid_height=None, env=None, **_) -> np.ndarray:
+        # Get the room crop from the parent
+        crop = super().get_crop(grid, agent_pos, agent_dir, room=room)
+
+        if room is None or env is None:
+            return crop
+
+        visible = self._visibility_mask(env, grid_width, grid_height)
+        ts = self.config.tile_size
+        rx, ry = room.top
+        rw, rh = room.size
+        result = crop.copy()
+        for cy in range(rh):
+            for cx in range(rw):
+                if not visible[rx + cx, ry + cy]:
+                    result[cy * ts:(cy + 1) * ts, cx * ts:(cx + 1) * ts] = 0
+        return result

@@ -57,6 +57,7 @@ class SARLevelGen(LevelGen):
             grid_width=self.width,
             grid_height=self.height,
             step_count=getattr(self, "step_count", None),
+            env=self,
             **kwargs,
         )
 

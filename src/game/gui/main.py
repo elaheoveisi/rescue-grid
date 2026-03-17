@@ -18,7 +18,7 @@ class SAREnvGUI:
             model=config.get("model", "gpt-4o-mini"),
             provider=config.get("provider", "openai"),
         )
-        self.llm_nudge_interval = config.get("llm_nudge_interval", 10)
+        self.llm_nudge_interval = config.get("llm_nudge_interval", 50)
         self.fullscreen = config.get("fullscreen", False)
         self.game_size = self.user.env.screen_size
 
@@ -51,13 +51,17 @@ class SAREnvGUI:
     def _create_panels(self):
         """Create (or recreate) the UI manager and side panels."""
         self.manager = pygame_gui.UIManager(self.window_size, "src/game/gui/theme.json")
-        self.info_panel = InfoPanel(self.manager, self.game_size, self.panel_width)
+        chat_height = self.game_size // 2
+        info_height = self.game_size - chat_height
+        self.info_panel = InfoPanel(
+            self.manager, self.game_size, self.panel_width, info_height
+        )
         self.chat_panel = ChatPanel(
             self.manager,
             self.game_size,
+            info_height,
             self.panel_width,
-            self.panel_width,
-            self.panel_width,
+            chat_height,
         )
 
     def _calculate_offsets(self):
@@ -75,9 +79,6 @@ class SAREnvGUI:
         self.window.fill((0, 0, 0))
         combined_surface = self._build_combined_surface(frame)
         self.window.blit(combined_surface, (self.offset_x, self.offset_y))
-        self.chat_panel.render_nudge(
-            self.window, self.offset_x, self.offset_y, self.game_size
-        )
         pygame.display.update()
 
     def _build_combined_surface(self, frame):
@@ -100,6 +101,7 @@ class SAREnvGUI:
 
     def reset(self):
         self.user.reset()
+        self.chat_panel.reset()
 
     def handle_user_input(self, event):
         if event.type != pygame.KEYDOWN:
@@ -117,7 +119,7 @@ class SAREnvGUI:
                 self.user.steps_since_last_llm > 0
                 and self.user.steps_since_last_llm % self.llm_nudge_interval == 0
             ):
-                self.chat_panel.nudge()
+                self.user.ask_llm_async()
 
     def toggle_fullscreen(self):
         """Toggle between fullscreen and windowed mode."""

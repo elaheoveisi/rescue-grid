@@ -1,8 +1,10 @@
 import pygame
 from pygame_gui.elements import UILabel, UIPanel, UITextBox
 
-_NUDGE_TEXT = "Agent: Please let me know if any guidance is needed by pressing ALT."
-_NUDGE_DURATION_MS = 3000
+_BG_NORMAL = pygame.Color("#1E1E28")
+_BG_HIGHLIGHT = pygame.Color("#E7E7EE")  # white tint — new transmission
+_HIGHLIGHT_DURATION_MS = 3000
+_BLINK_INTERVAL_MS = 400
 
 
 class ChatPanel:
@@ -12,15 +14,20 @@ class ChatPanel:
         self.manager = manager
         self.panel_width = panel_width
         self.panel_height = panel_height
-        self._nudge_time: int | None = None
-        self._nudge_font = pygame.font.SysFont(None, 54)
+        self._highlight_until: int = 0
+
+        scale = panel_width / 400
+        title_h = max(1, round(40 * scale))
+        gap = max(1, round(10 * scale))
 
         self.panel = UIPanel(
-            relative_rect=pygame.Rect(x_position, y_position, panel_width, panel_height),
+            relative_rect=pygame.Rect(
+                x_position, y_position, panel_width, panel_height
+            ),
             manager=manager,
         )
         self.title = UILabel(
-            relative_rect=pygame.Rect(0, 10, panel_width, 40),
+            relative_rect=pygame.Rect(0, gap, panel_width, title_h),
             text="CHAT",
             manager=manager,
             container=self.panel,
@@ -28,46 +35,58 @@ class ChatPanel:
         )
         self.text_box = UITextBox(
             html_text="",
-            relative_rect=pygame.Rect(0, 0, panel_width - 15, panel_height - 70),
+            relative_rect=pygame.Rect(
+                0, 0, panel_width - 15, panel_height - title_h - gap * 2
+            ),
             manager=manager,
             container=self.panel,
             anchors={"top": "top", "top_target": self.title},
         )
 
+    def _set_bg(self, colour: pygame.Color):
+        self.panel.background_colour = colour
+        self.panel.rebuild()
+        self.text_box.background_colour = colour
+        self.text_box.rebuild()
+
     def set_message(self, sender, text, color="#6495ED"):
         self.text_box.set_text(f"<font color='{color}'><b>{sender}:</b> {text}</font>")
+
+    def reset(self):
+        self._highlight_until = 0
+        self._set_bg(_BG_NORMAL)
+        self.clear_message()
 
     def clear_message(self):
         self.text_box.set_text("")
 
-    def nudge(self):
-        self._nudge_time = pygame.time.get_ticks()
+    def _update_blink(self, now: int):
+        if not self._highlight_until:
+            return
+        if now >= self._highlight_until:
+            self._highlight_until = 0
+            self._set_bg(_BG_NORMAL)
+        else:
+            blink_on = (now // _BLINK_INTERVAL_MS) % 2 == 0
+            self._set_bg(_BG_HIGHLIGHT if blink_on else _BG_NORMAL)
 
-    def render_nudge(self, window, offset_x: int, offset_y: int, game_size: int):
-        if self._nudge_time is None:
-            return
-        if pygame.time.get_ticks() - self._nudge_time >= _NUDGE_DURATION_MS:
-            return
-        dim = pygame.Surface((game_size, game_size))
-        dim.set_alpha(220)
-        dim.fill((0, 0, 0))
-        window.blit(dim, (offset_x, offset_y))
-        surf = self._nudge_font.render(_NUDGE_TEXT, True, (255, 255, 255))
-        cx = offset_x + game_size // 2 - surf.get_width() // 2
-        cy = offset_y + game_size // 2 - surf.get_height() // 2
-        window.blit(surf, (cx, cy))
+    def _handle_llm_result(self, user, now: int):
+        kind, value = user.llm_result
+        if kind == "reply":
+            self.set_message("Agent", value)
+            self._highlight_until = now + _HIGHLIGHT_DURATION_MS
+        else:
+            self.set_message("Error", value, color="#DC143C")
+        user.llm_thread = None
+        user.llm_result = None
 
     def poll_llm(self, user):
+        now = pygame.time.get_ticks()
+        self._update_blink(now)
         if user.llm_thread is None:
             return
         if user.llm_thread.is_alive():
-            dots = "." * (int(pygame.time.get_ticks() / 400) % 3 + 1)
+            dots = "." * (now // 400 % 3 + 1)
             self.set_message("Agent", f"thinking{dots}", color="#888888")
         elif user.llm_result is not None:
-            kind, value = user.llm_result
-            if kind == "reply":
-                self.set_message("Agent", value)
-            else:
-                self.set_message("Error", value, color="#DC143C")
-            user.llm_thread = None
-            user.llm_result = None
+            self._handle_llm_result(user, now)
