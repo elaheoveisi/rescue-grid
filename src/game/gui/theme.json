@@ -100,6 +100,12 @@
             "text_horiz_alignment": "left"
         }
     },
+    "#control_text":{
+        "font": {
+            "name": "Arial",
+            "size": "18"
+        }
+    },
     "#grey_key": {
         "colours": {
             "normal_text": "#808080"
@@ -112,6 +118,10 @@
         "colours": {
             "dark_bg": "#1E1E28",
             "normal_text": "#DCDCDC"
+        },
+        "font": {
+            "name": "Arial",
+            "size": "24"
         },
         "misc": {
             "border_width": "0"

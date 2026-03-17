@@ -7,6 +7,11 @@ from ixp.experiment import Experiment
 from ixp.sensors.eye_tracker.tobii import TobiiEyeTracker
 from ixp.surveys.nasa_tlx import NasaTLX
 from ixp.surveys.sart import SART
+from ixp.individual_difference.vs import VS
+from ixp.individual_difference.mot import MOT
+
+from experiment.tutorial import SARTutorial
+
 
 from experiment.game import SARGame
 from utils import skip_run
