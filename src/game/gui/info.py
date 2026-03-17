@@ -142,6 +142,7 @@ class InfoPanel:
             relative_rect=pygame.Rect(controls_x, 1, controls_width, compass_size + 10),
             manager=manager,
             container=self.panel,
+            object_id="#control_text",
             anchors={"top": "top", "top_target": self.nav_header},
         )
 
