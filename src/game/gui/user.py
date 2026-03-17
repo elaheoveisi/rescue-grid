@@ -1,3 +1,5 @@
+import threading
+
 from minigrid.core.actions import Actions
 from minigrid.manual_control import ManualControl
 
@@ -22,6 +24,22 @@ class User(ManualControl):
         self.episode_ended = False
         self.on_reset = None
         self.steps_since_last_llm = 0
+        self.llm_thread: threading.Thread | None = None
+        self.llm_result: tuple | None = None
+
+    def ask_llm_async(self):
+        """Start a background thread to ask the LLM. No-op if one is already running."""
+        if self.llm_thread is not None and self.llm_thread.is_alive():
+            return
+        self.llm_result = None
+        self.llm_thread = threading.Thread(target=self._run_llm, daemon=True)
+        self.llm_thread.start()
+
+    def _run_llm(self):
+        try:
+            self.llm_result = ("reply", self.ask_llm())
+        except Exception as e:
+            self.llm_result = ("error", str(e))
 
     def step(self, action: Actions):
         self.obs, reward, terminated, truncated, info = self.env.step(action)
@@ -31,7 +49,7 @@ class User(ManualControl):
         self.truncated = bool(truncated)
         self.total_steps += 1
         self.steps_since_last_llm += 1
-        if terminated or truncated:
+        if terminated:
             self.episode_ended = True
             self.reset()
         else:
@@ -83,7 +101,10 @@ class User(ManualControl):
             return self.last_llm_response
 
         self.last_llm_response = ask(
-            self.obs, model=self.model, provider=self.provider, prompt_type=self.prompt_type
+            self.obs,
+            model=self.model,
+            provider=self.provider,
+            prompt_type=self.prompt_type,
         )
         self.steps_since_last_llm = 0
         return self.last_llm_response

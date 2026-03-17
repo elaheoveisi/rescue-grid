@@ -71,29 +71,32 @@ class SAREnvGUI:
         self.offset_y = (self.screen_size[1] - self.scaled_height) // 2
 
     def render(self, frame):
+        self.chat_panel.poll_llm(self.user)
         self.window.fill((0, 0, 0))
+        combined_surface = self._build_combined_surface(frame)
+        self.window.blit(combined_surface, (self.offset_x, self.offset_y))
+        self.chat_panel.render_nudge(
+            self.window, self.offset_x, self.offset_y, self.game_size
+        )
+        pygame.display.update()
 
-        combined_surface = pygame.Surface(self.window_size, pygame.SRCALPHA)
-
+    def _build_combined_surface(self, frame):
+        surface = pygame.Surface(self.window_size, pygame.SRCALPHA)
         frame = np.transpose(frame, (1, 0, 2))
         game_surface = pygame.surfarray.make_surface(frame)
         game_surface = pygame.transform.smoothscale(
             game_surface, (self.game_size, self.game_size)
         )
-        combined_surface.blit(game_surface, (0, 0))
-
+        surface.blit(game_surface, (0, 0))
         self.info_panel.render(self.user.env)
-
         time_delta = self.clock.tick(30) / 1000.0
         self.manager.update(time_delta)
-        self.manager.draw_ui(combined_surface)
-
+        self.manager.draw_ui(surface)
         if self.scale != 1.0:
-            combined_surface = pygame.transform.smoothscale(
-                combined_surface, (self.scaled_width, self.scaled_height)
+            surface = pygame.transform.smoothscale(
+                surface, (self.scaled_width, self.scaled_height)
             )
-        self.window.blit(combined_surface, (self.offset_x, self.offset_y))
-        pygame.display.update()
+        return surface
 
     def reset(self):
         self.user.reset()
@@ -106,13 +109,7 @@ class SAREnvGUI:
         elif event.key == pygame.K_F11:
             self.toggle_fullscreen()
         elif event.key in (pygame.K_LALT, pygame.K_RALT):
-            try:
-                self.chat_panel.set_message("Agent", "thinking...", color="#888888")
-                self.render(self.user.get_frame())
-                reply = self.user.ask_llm()
-                self.chat_panel.set_message("Agent", reply)
-            except Exception as e:
-                self.chat_panel.set_message("Error", str(e), color="#DC143C")
+            self.user.ask_llm_async()
         else:
             event.key = pygame.key.name(int(event.key))
             self.user.handle_key(event)
@@ -120,9 +117,7 @@ class SAREnvGUI:
                 self.user.steps_since_last_llm > 0
                 and self.user.steps_since_last_llm % self.llm_nudge_interval == 0
             ):
-                self.chat_panel.set_message(
-                    "Agent", "Please let me know if any guidance is needed."
-                )
+                self.chat_panel.nudge()
 
     def toggle_fullscreen(self):
         """Toggle between fullscreen and windowed mode."""
