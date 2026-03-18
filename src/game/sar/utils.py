@@ -50,9 +50,7 @@ class VictimPlacer:
                     else:
                         # Randomly select from non-important victims in unlocked rooms
                         non_important_victims = [
-                            v
-                            for k, v in self.victims.items()
-                            if k != self.important_victim
+                            v for k, v in self.victims.items() if k != self.important_victim
                         ]
                         victim_to_place = random.choice(non_important_victims)
 
