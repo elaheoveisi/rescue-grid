@@ -1,1 +1,0 @@
-""In this session you will complete the main task. In this game, you will control a human operator in a grid-based environment. Your goal is to move through the map, open doors, avoid hazards, and rescue victims as quickly and accurately as possible.

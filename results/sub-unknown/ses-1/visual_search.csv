@@ -1,6 +1,0 @@
-trial_id,response,correct_answer,correct,rt
-trial_0,right,left,False,1.6852
-trial_1,left,right,False,1.6027
-trial_2,timeout,left,False,3
-trial_3,up,up,True,1.6181
-trial_4,up,left,False,1.7372
