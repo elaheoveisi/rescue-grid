@@ -28,20 +28,6 @@ xdf:
     no_llm:
       start: llm_start:no_llm
       end: llm_end:no_llm
-  stream_keywords:
-    eyetracking:
-    - gaze
-    - eye
-    - pupil
-    - eyetracking
-    - tobii
-    - gazepoint
-    game:
-    - game
-    - unity
-    - marker
-    - events
-    - rescue
 glmm:
   files:
     trial_data: ''
@@ -73,7 +59,7 @@ synthetic_conditions:
 streams:
   game: SARGame
   eyetracker: TobiiEyeTracker
-  llm_field: trial_id
+  llm_field: llm_provider
   eyetracker_channels:
     ch0: left_gaze_x
     ch1: left_gaze_y

@@ -51,6 +51,8 @@ def _parse_game_stream(s: dict) -> pd.DataFrame:
 def _parse_eye_stream(s: dict, channel_map: dict | None = None) -> pd.DataFrame:
     """Parse eyetracker float samples into a DataFrame."""
     ts   = s["time_stamps"]
+    # Debug print: show raw eyetracker time_series data
+    print("[DEBUG] Raw eyetracker time_series (first 5 rows):", s["time_series"][:5])
     data = np.array(s["time_series"])  # shape (N, channels)
 
     # try to get channel labels from metadata
@@ -92,17 +94,18 @@ def _parse_eye_stream(s: dict, channel_map: dict | None = None) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 
 def _split_by_trial(game_df: pd.DataFrame,
-                    eye_df: pd.DataFrame) -> dict[str, dict[str, pd.DataFrame]]:
+                    eye_df: pd.DataFrame,
+                    trial_field: str = "trial_id") -> dict[str, dict[str, pd.DataFrame]]:
     """
-    Split game and eyetracker data into per-trial segments using trial_id.
+    Split game and eyetracker data into per-trial segments using trial_field.
     Uses the time range of each trial block to slice the eyetracker.
     """
-    if "trial_id" not in game_df.columns:
-        raise ValueError(f"Field 'trial_id' not found in game stream. "
+    if trial_field not in game_df.columns:
+        raise ValueError(f"Field '{trial_field}' not found in game stream. "
                          f"Available: {list(game_df.columns)}")
 
     result = {}
-    for trial_id, group in game_df.groupby("trial_id", sort=False):
+    for trial_id, group in game_df.groupby(trial_field, sort=False):
         t_start = group["timestamp"].iloc[0]
         t_end   = group["timestamp"].iloc[-1]
 
@@ -121,7 +124,7 @@ def _split_by_trial(game_df: pd.DataFrame,
 # ---------------------------------------------------------------------------
 
 def load_subject(xdf_path: str | Path, config: dict) -> dict[str, dict[str, pd.DataFrame]]:
-    """Load one XDF file and return data split by LLM model."""
+    """Load one XDF file and return data split by trial."""
     streams_cfg = config["streams"]
     game_name   = streams_cfg["game"]
     eye_name    = streams_cfg["eyetracker"]
@@ -137,10 +140,11 @@ def load_subject(xdf_path: str | Path, config: dict) -> dict[str, dict[str, pd.D
         raise RuntimeError(f"Eyetracker stream '{eye_name}' not found in {xdf_path}")
 
     channel_map = streams_cfg.get("eyetracker_channels", {})
+    trial_field = streams_cfg.get("llm_field", "trial_id")
     game_df = _parse_game_stream(game_stream)
     eye_df  = _parse_eye_stream(eye_stream, channel_map=channel_map)
 
-    return _split_by_trial(game_df, eye_df)
+    return _split_by_trial(game_df, eye_df, trial_field=trial_field)
 
 
 # ---------------------------------------------------------------------------
@@ -154,8 +158,8 @@ def load_all(config: dict,
     Load all subjects listed in config.
 
     Returns:
-        data[subject_id][llm_model]["game"]       -> DataFrame
-        data[subject_id][llm_model]["eyetracker"] -> DataFrame
+        data[subject_id][llm_provider]["game"]       -> DataFrame
+        data[subject_id][llm_provider]["eyetracker"] -> DataFrame
     """
     data_dir = Path(data_dir)
     subjects = config.get("subjects", [])

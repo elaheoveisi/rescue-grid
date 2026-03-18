@@ -1,5 +1,6 @@
 
 
+import json
 import pyxdf
 import pandas as pd
 import yaml
@@ -27,7 +28,7 @@ def inspect_xdf_file(xdf_path):
 			for ts, v in zip(stream.get('time_stamps', []), stream.get('time_series', [])):
 				try:
 					sample = v[0] if isinstance(v, (list, tuple)) else v
-					sample = pd.json.loads(sample)
+					sample = json.loads(sample)
 					sample['timestamp'] = ts
 					rows.append(sample)
 				except Exception:
