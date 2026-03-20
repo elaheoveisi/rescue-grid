@@ -1,0 +1,138 @@
+sub:
+  - P001
+  - P002
+  - P003
+  - P004
+  - P005
+  - P006
+  - P007
+  - P008
+  - P009
+  - P010
+
+
+# Participant expertise: expert or novice
+# Add each subject ID here; subjects not listed default to 'unknown'
+expertise:
+  P001: expert
+  P002: expert
+  P003: novice
+  P004: novice
+  P005: novice
+  P006: novice
+  P007: novice
+  P008: expert
+  P009: novice
+  P010: expert
+
+
+paths:
+  intermediate: data/intermediate   # output of xdf.py  (per-trial h5/csv)
+  processed:    data/processed       # output of fixations/saccades
+
+eyetracker:
+  x_col:       avg_gaze_point_x   # normalized 0-1 (no PsychoPy window set during recording)
+  y_col:       avg_gaze_point_y   # normalized 0-1 (no PsychoPy window set during recording)
+  time_col:    timestamp
+  screen_w:    1920       # screen width in pixels  (used to scale normalized -> pixels)
+  screen_h:    1080       # screen height in pixels (used to scale normalized -> pixels)
+  missing:     0.0        # value used for missing/invalid samples
+
+  channels:                 # column names applied when saving eyetracker.h5/csv
+    - device_timestamp
+    - avg_gaze_point_x
+    - avg_gaze_point_y
+    - avg_pupil_diam
+    - avg_eye_pos_x
+    - avg_eye_pos_y
+    - avg_eye_pos_z
+    - avg_eye_distance
+    - eye_validities
+
+fixation:
+  maxdist: 25    # max inter-sample distance in pixels
+  mindur:  50    # min fixation duration in ms
+
+saccade:
+  minlen:  5     # min saccade duration in ms
+  maxvel:  40    # max velocity threshold px/s
+  maxacc:  340   # max acceleration threshold px
+
+# Areas of Interest (pixels, origin = top-left of 1920x1080 screen)
+#
+# Derivation (fullscreen, 1920x1080):
+#   Game window (unscaled): 1175 x 800
+#   scale = min(1920/1175, 1080/800) = 1.35
+#   scaled: 1586 x 1080
+#   offset_x = (1920 - 1586) // 2 = 167,  offset_y = 0
+#
+#   Game area  (game coords 0–800 x 0–800):  px 167–1247 x 0–1080
+#   Info panel (game coords 800–1175 x 0–400): px 1247–1753 x 0–540
+#   Chat panel (game coords 800–1175 x 400–800): px 1247–1753 x 540–1080
+aoi:
+  - name:  game_area        # game grid / playing field
+    x_min: 167
+    y_min: 0
+    x_max: 1247
+    y_max: 1080
+
+  - name:  info_panel       # mission info + navigation (top-right)
+    x_min: 1247
+    y_min: 0
+    x_max: 1753
+    y_max: 540
+
+  - name:  chat_panel       # LLM chat box (bottom-right)
+    x_min: 1247
+    y_min: 540
+    x_max: 1753
+    y_max: 1080
+
+  - name:  border           # black letterbox (left + right margins)
+    x_min: 0
+    y_min: 0
+    x_max: 167
+    y_max: 1080
+
+# Outcomes for GLMM
+continuous_outcomes:
+  - steps_used_pct
+  - total_reward
+  - mean_reward
+  - trial_duration_s
+  - mean_fixation_dur_ms
+  - total_fixation_dur_ms
+  - mean_saccade_amp_px
+  - total_saccade_dur_ms
+  - mean_pupil_diam
+  - mean_eye_distance
+  - pct_missing_eye
+  - game_area_pct_dur
+  - info_panel_pct_dur
+  - chat_panel_pct_dur
+  - border_pct_dur
+  - game_area_mean_dur_ms
+  - info_panel_mean_dur_ms
+  - chat_panel_mean_dur_ms
+
+# Step checkpoints: victims saved at each of these step counts
+checkpoints:
+  - 250
+  - 500
+  - 750
+
+count_outcomes:
+  - victims_at_step_250
+  - victims_at_step_500
+  - victims_at_step_750
+  - final_saved_victims
+  - final_remaining_victims
+  - final_step_count
+  - total_steps
+  - n_actions
+  - n_llm_calls
+  - n_fixations
+  - n_saccades
+  - n_fixations_game_area
+  - n_fixations_info_panel
+  - n_fixations_chat_panel
