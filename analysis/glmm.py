@@ -25,13 +25,23 @@ def load_features(cfg):
     expertise_map    = {str(k): str(v) for k, v in cfg.get("expertise", {}).items()}
 
     checkpoints = cfg.get("checkpoints", [])
+    fix_cfg     = cfg.get("fixation", {})
+    fix_mindur  = fix_cfg.get("mindur", 50.0)
+    fix_maxdur  = fix_cfg.get("maxdur", 400.0)
+    sac_cfg     = cfg.get("saccade", {})
+    sac_mindur  = sac_cfg.get("mindur", 10.0)
+    sac_maxdur  = sac_cfg.get("maxdur", 150.0)
 
     all_rows = []
     for sid in subjects:
         all_rows.extend(
             process_subject(sid, intermediate_dir, processed_dir, missing_val,
                             expertise=expertise_map.get(sid, "unknown"),
-                            checkpoints=checkpoints)
+                            checkpoints=checkpoints,
+                            fix_mindur=fix_mindur,
+                            fix_maxdur=fix_maxdur,
+                            sac_mindur=sac_mindur,
+                            sac_maxdur=sac_maxdur)
         )
 
     if not all_rows:

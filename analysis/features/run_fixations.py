@@ -60,6 +60,7 @@ def run_fixations(cfg: dict) -> None:
     missing  = eye_cfg["missing"]
     maxdist  = fix_cfg["maxdist"]
     mindur   = fix_cfg["mindur"]
+    maxgap   = fix_cfg.get("maxgap", 200)
 
     summaries = []
 
@@ -79,9 +80,6 @@ def run_fixations(cfg: dict) -> None:
                 print(f"         {trial_id:35s}  empty eyetracker — skipping")
                 continue
 
-            # convert timestamps to relative ms (fixation detector uses ms for mindur)
-            eye_df[time_col] = (eye_df[time_col] - eye_df[time_col].iloc[0]) * 1000.0
-
             # scale normalized gaze (0-1) to pixels for distance-based detection
             eye_df[x_col] = eye_df[x_col] * screen_w
             eye_df[y_col] = eye_df[y_col] * screen_h
@@ -96,6 +94,7 @@ def run_fixations(cfg: dict) -> None:
                 missing=missing,
                 maxdist=maxdist,
                 mindur=mindur,
+                maxgap=maxgap,
             )
             summary = fixation_summary(Efix)
 

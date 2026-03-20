@@ -136,11 +136,22 @@ def checkpoint_features(game_df: pd.DataFrame | None, checkpoints: list[int]) ->
     return result
 
 
-def fixation_features(fix_df: pd.DataFrame | None) -> dict:
+def fixation_features(fix_df: pd.DataFrame | None,
+                      mindur: float = 50.0,
+                      maxdur: float = 400.0) -> dict:
     if fix_df is None or fix_df.empty:
         return {
-            "n_fixations":          0,
-            "mean_fixation_dur_ms": 0.0,
+            "n_fixations":           0,
+            "mean_fixation_dur_ms":  0.0,
+            "total_fixation_dur_ms": 0.0,
+        }
+    fix_df = fix_df[
+        (fix_df["duration_ms"] >= mindur) & (fix_df["duration_ms"] <= maxdur)
+    ]
+    if fix_df.empty:
+        return {
+            "n_fixations":           0,
+            "mean_fixation_dur_ms":  0.0,
             "total_fixation_dur_ms": 0.0,
         }
     return {
@@ -150,8 +161,19 @@ def fixation_features(fix_df: pd.DataFrame | None) -> dict:
     }
 
 
-def saccade_features(sac_df: pd.DataFrame | None) -> dict:
+def saccade_features(sac_df: pd.DataFrame | None,
+                     mindur: float = 10.0,
+                     maxdur: float = 150.0) -> dict:
     if sac_df is None or sac_df.empty:
+        return {
+            "n_saccades":           0,
+            "mean_saccade_amp_px":  0.0,
+            "total_saccade_dur_ms": 0.0,
+        }
+    sac_df = sac_df[
+        (sac_df["duration_ms"] >= mindur) & (sac_df["duration_ms"] <= maxdur)
+    ]
+    if sac_df.empty:
         return {
             "n_saccades":           0,
             "mean_saccade_amp_px":  0.0,
@@ -180,7 +202,8 @@ def eye_features(eye_df: pd.DataFrame | None, missing_val: float = 0.0) -> dict:
 
     if "avg_gaze_point_x" in eye_df.columns:
         n_total   = len(eye_df)
-        n_missing = int((eye_df["avg_gaze_point_x"] == missing_val).sum())
+        is_missing = eye_df["avg_gaze_point_x"].isna() | (eye_df["avg_gaze_point_x"] == missing_val)
+        n_missing  = int(is_missing.sum())
         feats["n_missing_eye"]  = n_missing
         feats["pct_missing_eye"] = round(n_missing / n_total * 100, 2) if n_total > 0 else 0.0
 
@@ -196,7 +219,11 @@ def process_subject(subject_id: str,
                     processed_dir: Path,
                     missing_val: float,
                     expertise: str = "unknown",
-                    checkpoints: list[int] | None = None) -> list[dict]:
+                    checkpoints: list[int] | None = None,
+                    fix_mindur: float = 50.0,
+                    fix_maxdur: float = 400.0,
+                    sac_mindur: float = 10.0,
+                    sac_maxdur: float = 150.0) -> list[dict]:
     sub_int = intermediate_dir / f"sub-{subject_id}"
     if not sub_int.exists():
         print(f"  [SKIP] {subject_id}: no intermediate data")
@@ -220,8 +247,8 @@ def process_subject(subject_id: str,
                       "base_trial": base_trial, "run": run, "expertise": expertise}
         feat.update(game_features(streams["game"]))
         feat.update(checkpoint_features(streams["game"], checkpoints or []))
-        feat.update(fixation_features(streams["fixations"]))
-        feat.update(saccade_features(streams["saccades"]))
+        feat.update(fixation_features(streams["fixations"], mindur=fix_mindur, maxdur=fix_maxdur))
+        feat.update(saccade_features(streams["saccades"], mindur=sac_mindur, maxdur=sac_maxdur))
         feat.update(eye_features(streams["eyetracker"], missing_val))
         feat.update(aoi_features(subject_id, trial_id, processed_dir))
 

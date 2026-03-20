@@ -1,23 +1,3 @@
-"""
-analysis/features/run_saccades.py
-
-Runs saccade detection on eyetracker data for all subjects and trials.
-
-Reads from:
-    data/intermediate/sub-{ID}/{trial}/eyetracker.h5
-
-Saves to:
-    data/processed/sub-{ID}/{trial}/saccades.csv
-    data/processed/sub-{ID}/{trial}/saccades.h5
-    data/processed/saccades_summary.csv
-
-Subject list and paths driven by configs/config_analysis.yml.
-To add a new subject: add their ID to config and place files
-in data/intermediate/sub-{ID}/ — no code changes needed.
-
-Usage:
-    python analysis/features/run_saccades.py
-"""
 
 import sys
 from pathlib import Path
@@ -81,6 +61,7 @@ def run_saccades(cfg: dict) -> None:
     minlen   = sac_cfg["minlen"]
     maxvel   = sac_cfg["maxvel"]
     maxacc   = sac_cfg["maxacc"]
+    maxgap   = sac_cfg.get("maxgap", 200)
 
     summaries = []
 
@@ -117,6 +98,7 @@ def run_saccades(cfg: dict) -> None:
                 minlen=minlen,
                 maxvel=maxvel,
                 maxacc=maxacc,
+                maxgap=maxgap,
             )
 
             rows = []
