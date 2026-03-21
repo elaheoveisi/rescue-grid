@@ -28,10 +28,11 @@ def load_trial_data(subject_id: str,
     base_int  = intermediate_dir / f"sub-{subject_id}" / trial_id
     base_proc = processed_dir    / f"sub-{subject_id}" / trial_id
     return {
-        "game":       _read_h5(base_int  / "game.h5",       "game"),
-        "eyetracker": _read_h5(base_int  / "eyetracker.h5", "eyetracker"),
-        "fixations":  _read_h5(base_proc / "fixations.h5",  "fixations"),
-        "saccades":   _read_h5(base_proc / "saccades.h5",   "saccades"),
+        "game":          _read_h5(base_int  / "game.h5",          "game"),
+        "eyetracker":    _read_h5(base_int  / "eyetracker.h5",    "eyetracker"),
+        "fixations":     _read_h5(base_proc / "fixations.h5",     "fixations"),
+        "fixations_aoi": _read_h5(base_proc / "fixations_aoi.h5", "fixations_aoi"),
+        "saccades":      _read_h5(base_proc / "saccades.h5",      "saccades"),
     }
 
 
@@ -195,6 +196,146 @@ def saccade_features(sac_df: pd.DataFrame | None,
     }
 
 
+def quarter_features(game_df:      pd.DataFrame | None,
+                     fix_aoi_df:  pd.DataFrame | None,
+                     sac_df:      pd.DataFrame | None,
+                     eye_df:      pd.DataFrame | None,
+                     missing_val: float = 0.0,
+                     quarters:    list[int] | None = None) -> dict:
+    """Per-quarter (25/50/75/100 % of steps) eye-tracking and performance features.
+
+    Columns produced (one set per quarter q):
+        q{q}_game_area_pct_dur, q{q}_chat_panel_pct_dur,
+        q{q}_mean_fixation_dur_ms, q{q}_mean_saccade_amp_px,
+        q{q}_std_pupil_diam, q{q}_victims_per_step
+    """
+    if quarters is None:
+        quarters = [25, 50, 75, 100]
+
+    null_row = {}
+    for pct in quarters:
+        for col in ["game_area_pct_dur", "chat_panel_pct_dur",
+                    "mean_fixation_dur_ms", "mean_saccade_amp_px",
+                    "std_pupil_diam", "victims_per_step"]:
+            null_row[f"q{pct}_{col}"] = None
+
+    if game_df is None or game_df.empty:
+        return null_row
+    if "step_count" not in game_df.columns or "timestamp" not in game_df.columns:
+        return null_row
+
+    game_df = game_df.copy()
+    game_df["step_count"] = pd.to_numeric(game_df["step_count"], errors="coerce")
+    if "saved_victims" in game_df.columns:
+        game_df["saved_victims"] = pd.to_numeric(game_df["saved_victims"], errors="coerce")
+
+    # reference time = start of active game period
+    if "mission_status" in game_df.columns:
+        active = game_df[game_df["mission_status"] == "continue"]
+        if active.empty:
+            active = game_df
+    else:
+        active = game_df
+    t0_s = float(active["timestamp"].iloc[0])
+
+    total_steps = game_df["step_count"].max()
+    if pd.isna(total_steps) or total_steps == 0:
+        return null_row
+
+    result        = {}
+    prev_ms       = 0.0
+    victims_prev  = 0
+    steps_prev    = 0
+
+    for pct in quarters:
+        threshold    = total_steps * pct / 100.0
+        at_or_before = game_df[game_df["step_count"] <= threshold]
+
+        if at_or_before.empty:
+            for col in ["game_area_pct_dur", "chat_panel_pct_dur",
+                        "mean_fixation_dur_ms", "mean_saccade_amp_px",
+                        "std_pupil_diam", "victims_per_step"]:
+                result[f"q{pct}_{col}"] = None
+            continue
+
+        t_end_ms = (float(at_or_before["timestamp"].iloc[-1]) - t0_s) * 1000.0
+        t_start_ms = prev_ms
+
+        # ── fixation-based features ──────────────────────────────────────────
+        if fix_aoi_df is not None and not fix_aoi_df.empty and "start_ms" in fix_aoi_df.columns:
+            win_fix = fix_aoi_df[
+                (fix_aoi_df["start_ms"] >= t_start_ms) &
+                (fix_aoi_df["start_ms"] <  t_end_ms)
+            ]
+        else:
+            win_fix = pd.DataFrame()
+
+        if not win_fix.empty:
+            total_fix_dur = float(win_fix["duration_ms"].sum())
+            if total_fix_dur > 0:
+                ga_dur = win_fix[win_fix["aoi"] == "game_area"]["duration_ms"].sum()
+                cp_dur = win_fix[win_fix["aoi"] == "chat_panel"]["duration_ms"].sum()
+                result[f"q{pct}_game_area_pct_dur"]    = round(float(ga_dur / total_fix_dur * 100), 3)
+                result[f"q{pct}_chat_panel_pct_dur"]   = round(float(cp_dur / total_fix_dur * 100), 3)
+            else:
+                result[f"q{pct}_game_area_pct_dur"]    = None
+                result[f"q{pct}_chat_panel_pct_dur"]   = None
+            result[f"q{pct}_mean_fixation_dur_ms"] = round(float(win_fix["duration_ms"].mean()), 3)
+        else:
+            result[f"q{pct}_game_area_pct_dur"]    = None
+            result[f"q{pct}_chat_panel_pct_dur"]   = None
+            result[f"q{pct}_mean_fixation_dur_ms"] = None
+
+        # ── saccade features ─────────────────────────────────────────────────
+        if sac_df is not None and not sac_df.empty and "start_ms" in sac_df.columns:
+            win_sac = sac_df[
+                (sac_df["start_ms"] >= t_start_ms) &
+                (sac_df["start_ms"] <  t_end_ms)
+            ]
+            result[f"q{pct}_mean_saccade_amp_px"] = (
+                round(float(win_sac["amplitude"].mean()), 3) if not win_sac.empty else None
+            )
+        else:
+            result[f"q{pct}_mean_saccade_amp_px"] = None
+
+        # ── pupil std ────────────────────────────────────────────────────────
+        if (eye_df is not None and not eye_df.empty
+                and "avg_pupil_diam" in eye_df.columns
+                and "timestamp" in eye_df.columns):
+            t_start_abs = t0_s + t_start_ms / 1000.0
+            t_end_abs   = t0_s + t_end_ms   / 1000.0
+            win_eye = eye_df[
+                (eye_df["timestamp"] >= t_start_abs) &
+                (eye_df["timestamp"] <  t_end_abs)
+            ]
+            valid_pupil = win_eye["avg_pupil_diam"].replace(missing_val, np.nan).dropna()
+            result[f"q{pct}_std_pupil_diam"] = (
+                round(float(valid_pupil.std()), 4) if len(valid_pupil) > 1 else None
+            )
+        else:
+            result[f"q{pct}_std_pupil_diam"] = None
+
+        # ── victims per step ─────────────────────────────────────────────────
+        steps_end   = int(at_or_before["step_count"].iloc[-1])
+        victims_end = (
+            int(at_or_before["saved_victims"].iloc[-1])
+            if "saved_victims" in at_or_before.columns
+               and not at_or_before["saved_victims"].isna().all()
+            else 0
+        )
+        steps_in_q   = steps_end   - steps_prev
+        victims_in_q = victims_end - victims_prev
+        result[f"q{pct}_victims_per_step"] = (
+            round(victims_in_q / steps_in_q, 6) if steps_in_q > 0 else None
+        )
+
+        prev_ms      = t_end_ms
+        victims_prev = victims_end
+        steps_prev   = steps_end
+
+    return result
+
+
 def eye_features(eye_df: pd.DataFrame | None, missing_val: float = 0.0) -> dict:
     if eye_df is None or eye_df.empty:
         return {}
@@ -260,6 +401,11 @@ def process_subject(subject_id: str,
         feat.update(saccade_features(streams["saccades"], mindur=sac_mindur, maxdur=sac_maxdur))
         feat.update(eye_features(streams["eyetracker"], missing_val))
         feat.update(aoi_features(subject_id, trial_id, processed_dir))
+        feat.update(quarter_features(
+            streams["game"], streams["fixations_aoi"], streams["saccades"],
+            streams["eyetracker"], missing_val=missing_val,
+            quarters=checkpoints or [25, 50, 75, 100],
+        ))
 
         rows.append(feat)
 

@@ -53,13 +53,13 @@ fixation:
   maxdist: 25    # max inter-sample distance in pixels
   mindur:  100   # min fixation duration in ms
   maxdur:  600  # max fixation duration in ms (removes tracking artifacts)
-  maxgap:  200   # max allowed time gap between consecutive valid samples (ms); larger gaps break the fixation
+  maxgap:  150  # max allowed time gap between consecutive valid samples (ms); larger gaps break the fixation
 
 saccade:
-  minlen:  50     # min saccade duration in ms (detector-level)
+  minlen:  20     # min saccade duration in ms (detector-level)
   maxvel:  1000  # velocity threshold px/s  (at 58 Hz, fixation jitter ~300 px/s; saccades ~3000+ px/s)
-  maxgap:  200   # max allowed time gap between consecutive valid samples (ms)
-  mindur:  50   # min saccade duration in ms (post-detection filter)
+  maxgap:  150   # max allowed time gap between consecutive valid samples (ms)
+  mindur:  30  # min saccade duration in ms (post-detection filter)
   maxdur:  150   # max saccade duration in ms (post-detection filter)
 
 
@@ -104,6 +104,32 @@ continuous_outcomes:
   - game_area_mean_dur_ms
   - info_panel_mean_dur_ms
   - chat_panel_mean_dur_ms
+
+  # quarter-level (25 / 50 / 75 / 100 % of steps)
+  - q25_game_area_pct_dur
+  - q50_game_area_pct_dur
+  - q75_game_area_pct_dur
+  - q100_game_area_pct_dur
+  - q25_chat_panel_pct_dur
+  - q50_chat_panel_pct_dur
+  - q75_chat_panel_pct_dur
+  - q100_chat_panel_pct_dur
+  - q25_mean_fixation_dur_ms
+  - q50_mean_fixation_dur_ms
+  - q75_mean_fixation_dur_ms
+  - q100_mean_fixation_dur_ms
+  - q25_mean_saccade_amp_px
+  - q50_mean_saccade_amp_px
+  - q75_mean_saccade_amp_px
+  - q100_mean_saccade_amp_px
+  - q25_std_pupil_diam
+  - q50_std_pupil_diam
+  - q75_std_pupil_diam
+  - q100_std_pupil_diam
+  - q25_victims_per_step
+  - q50_victims_per_step
+  - q75_victims_per_step
+  - q100_victims_per_step
 
 # Step checkpoints: victims saved at each of these % of each trial's total steps
 checkpoints:
