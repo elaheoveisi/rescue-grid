@@ -9,7 +9,7 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / "igaze" / "igaze"))
 
-from fixation import extract_fixations_from_df, fixation_summary  # noqa: E402
+from fixation import extract_fixations_from_df, fixation_summary  
 
 CONFIG = ROOT / "configs" / "config_analysis.yml"
 

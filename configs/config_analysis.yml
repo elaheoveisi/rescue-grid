@@ -63,41 +63,27 @@ saccade:
   mindur:  10    # min saccade duration in ms (post-detection filter)
   maxdur:  150   # max saccade duration in ms (post-detection filter)
 
-# Areas of Interest (pixels, origin = top-left of 1920x1080 screen)
-#
-# Derivation (fullscreen, 1920x1080):
-#   Game window (unscaled): 1175 x 800
-#   scale = min(1920/1175, 1080/800) = 1.35
-#   scaled: 1586 x 1080
-#   offset_x = (1920 - 1586) // 2 = 167,  offset_y = 0
-#
-#   Game area  (game coords 0–800 x 0–800):  px 167–1247 x 0–1080
-#   Info panel (game coords 800–1175 x 0–400): px 1247–1753 x 0–540
-#   Chat panel (game coords 800–1175 x 400–800): px 1247–1753 x 540–1080
+
 aoi:
   - name:  game_area        # game grid / playing field
-    x_min: 167
+    x_min: 150
     y_min: 0
-    x_max: 1247
+    x_max: 1080
     y_max: 1080
 
   - name:  info_panel       # mission info + navigation (top-right)
-    x_min: 1247
+    x_min: 1230
     y_min: 0
-    x_max: 1753
+    x_max: 1770
     y_max: 540
 
   - name:  chat_panel       # LLM chat box (bottom-right)
-    x_min: 1247
+    x_min: 1230
     y_min: 540
-    x_max: 1753
+    x_max: 1770
     y_max: 1080
 
-  - name:  border           # black letterbox (left + right margins)
-    x_min: 0
-    y_min: 0
-    x_max: 167
-    y_max: 1080
+ 
 
 # Outcomes for GLMM
 continuous_outcomes:
@@ -115,7 +101,7 @@ continuous_outcomes:
   - game_area_pct_dur
   - info_panel_pct_dur
   - chat_panel_pct_dur
-  - border_pct_dur
+
   - game_area_mean_dur_ms
   - info_panel_mean_dur_ms
   - chat_panel_mean_dur_ms
