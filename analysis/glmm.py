@@ -67,7 +67,7 @@ def load_features(cfg):
 
 
 def _fixed_effects_formula(outcome, df):
-    formula = f"{outcome} ~ C(trial)"
+    formula = f"{outcome} ~ C(trial, Treatment(reference='trial_dummy'))"
     if "expertise" in df.columns and df["expertise"].nunique() > 1:
         formula += " + C(expertise)"
     return formula

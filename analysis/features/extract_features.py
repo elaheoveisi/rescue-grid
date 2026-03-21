@@ -118,21 +118,30 @@ def aoi_features(subject_id: str, trial_id: str, processed_dir: Path) -> dict:
 
 
 def checkpoint_features(game_df: pd.DataFrame | None, checkpoints: list[int]) -> dict:
-    """Victims saved at each step checkpoint. If the trial ended before the checkpoint, use the last recorded value."""
+    """Victims saved at each percentage checkpoint of the trial's total steps.
+
+    checkpoints: list of percentages, e.g. [25, 50, 75, 100].
+    The actual step threshold is computed as total_steps * pct / 100 per trial.
+    """
     if game_df is None or game_df.empty or "step_count" not in game_df.columns or "saved_victims" not in game_df.columns:
-        return {f"victims_at_step_{s}": None for s in checkpoints}
+        return {f"victims_at_pct_{p}": None for p in checkpoints}
 
     game_df = game_df.copy()
     game_df["step_count"]    = pd.to_numeric(game_df["step_count"],    errors="coerce")
     game_df["saved_victims"] = pd.to_numeric(game_df["saved_victims"], errors="coerce")
 
+    total_steps = game_df["step_count"].max()
+    if pd.isna(total_steps) or total_steps == 0:
+        return {f"victims_at_pct_{p}": None for p in checkpoints}
+
     result = {}
-    for step in checkpoints:
-        at_or_before = game_df[game_df["step_count"] <= step]
+    for pct in checkpoints:
+        threshold = total_steps * pct / 100.0
+        at_or_before = game_df[game_df["step_count"] <= threshold]
         if at_or_before.empty:
-            result[f"victims_at_step_{step}"] = None
+            result[f"victims_at_pct_{pct}"] = None
         else:
-            result[f"victims_at_step_{step}"] = int(at_or_before["saved_victims"].iloc[-1])
+            result[f"victims_at_pct_{pct}"] = int(at_or_before["saved_victims"].iloc[-1])
     return result
 
 

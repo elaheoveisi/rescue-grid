@@ -51,33 +51,32 @@ eyetracker:
 
 fixation:
   maxdist: 25    # max inter-sample distance in pixels
-  mindur:  50    # min fixation duration in ms
-  maxdur:  400   # max fixation duration in ms (removes tracking artifacts)
+  mindur:  100   # min fixation duration in ms
+  maxdur:  600  # max fixation duration in ms (removes tracking artifacts)
   maxgap:  200   # max allowed time gap between consecutive valid samples (ms); larger gaps break the fixation
 
 saccade:
-  minlen:  5     # min saccade duration in ms (detector-level)
+  minlen:  50     # min saccade duration in ms (detector-level)
   maxvel:  1000  # velocity threshold px/s  (at 58 Hz, fixation jitter ~300 px/s; saccades ~3000+ px/s)
-  maxacc:  3000  # velocity-change-per-sample threshold px/s  (scaled for 58 Hz)
   maxgap:  200   # max allowed time gap between consecutive valid samples (ms)
-  mindur:  10    # min saccade duration in ms (post-detection filter)
+  mindur:  50   # min saccade duration in ms (post-detection filter)
   maxdur:  150   # max saccade duration in ms (post-detection filter)
 
 
 aoi:
-  - name:  game_area        # game grid / playing field
+  - name:  game_area      
     x_min: 150
     y_min: 0
     x_max: 1080
     y_max: 1080
 
-  - name:  info_panel       # mission info + navigation (top-right)
+  - name:  info_panel       
     x_min: 1230
     y_min: 0
     x_max: 1770
     y_max: 540
 
-  - name:  chat_panel       # LLM chat box (bottom-right)
+  - name:  chat_panel      
     x_min: 1230
     y_min: 540
     x_max: 1770
@@ -106,16 +105,18 @@ continuous_outcomes:
   - info_panel_mean_dur_ms
   - chat_panel_mean_dur_ms
 
-# Step checkpoints: victims saved at each of these step counts
+# Step checkpoints: victims saved at each of these % of each trial's total steps
 checkpoints:
-  - 250
-  - 500
-  - 750
+  - 25
+  - 50
+  - 75
+  - 100
 
 count_outcomes:
-  - victims_at_step_250
-  - victims_at_step_500
-  - victims_at_step_750
+  - victims_at_pct_25
+  - victims_at_pct_50
+  - victims_at_pct_75
+  - victims_at_pct_100
   - final_saved_victims
   - final_remaining_victims
   - final_step_count

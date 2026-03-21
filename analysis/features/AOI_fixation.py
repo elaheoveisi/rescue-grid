@@ -25,6 +25,21 @@ def assign_aoi(x_px: float, y_px: float, aois: list[dict]) -> str:
     return "offscreen"
 
 
+def aoi_transition_matrix(fix_aoi_df: pd.DataFrame, aois: list[dict]) -> pd.DataFrame:
+    """Compute AOI-to-AOI transition counts from the ordered fixation sequence.
+
+    Excludes offscreen fixations from transitions.
+    Returns a DataFrame with rows=from, cols=to, values=counts.
+    """
+    labels   = [a["name"] for a in aois]
+    matrix   = pd.DataFrame(0, index=labels, columns=labels)
+    sequence = fix_aoi_df[fix_aoi_df["aoi"] != "offscreen"]["aoi"].tolist()
+    for src, dst in zip(sequence[:-1], sequence[1:]):
+        if src in matrix.index and dst in matrix.columns:
+            matrix.loc[src, dst] += 1
+    return matrix
+
+
 def label_fixations(fix_df: pd.DataFrame, aois: list[dict]) -> pd.DataFrame:
     """Add an 'aoi' column to a fixations DataFrame (columns: x, y in pixels)."""
     fix_df = fix_df.copy()
@@ -173,6 +188,10 @@ def process_subject(subject_id: str,
         fix_aoi.to_csv(out_dir / "fixations_aoi.csv", index=False)
         fix_aoi.to_hdf(out_dir / "fixations_aoi.h5", key="fixations_aoi", mode="w")
 
+        # transition matrix
+        trans = aoi_transition_matrix(fix_aoi, aois)
+        trans.to_csv(out_dir / "aoi_transitions.csv")
+
         counts    = fix_aoi["aoi"].value_counts().to_dict()
         dur_by_aoi = fix_aoi.groupby("aoi")["duration_ms"].agg(["sum", "mean"])
         total_dur  = fix_aoi["duration_ms"].sum()
@@ -250,5 +269,40 @@ if __name__ == "__main__":
         summary_df.to_csv(out_path, index=False)
         print(f"\nAOI summary -> {out_path.relative_to(ROOT)}")
         print(summary_df.to_string(index=False))
+
+    # aggregate transition matrices across all subjects — overall and per trial type
+    aoi_names   = [a["name"] for a in aois]
+    total_trans = pd.DataFrame(0, index=aoi_names, columns=aoi_names)
+    by_trial    = {}   # base trial name -> aggregated matrix
+
+    for sid in subjects:
+        sub_proc = processed / f"sub-{sid}"
+        if not sub_proc.exists():
+            continue
+        for trial_dir in sorted(sub_proc.iterdir()):
+            t_file = trial_dir / "aoi_transitions.csv"
+            if not t_file.exists():
+                continue
+            mat = pd.read_csv(t_file, index_col=0)
+            mat = mat.reindex(index=aoi_names, columns=aoi_names, fill_value=0)
+            total_trans += mat
+
+            # derive base trial name (strip _runN suffix)
+            import re as _re
+            base = _re.sub(r'_run\d+$', '', trial_dir.name)
+            if base not in by_trial:
+                by_trial[base] = pd.DataFrame(0, index=aoi_names, columns=aoi_names)
+            by_trial[base] += mat
+
+    out_trans = processed / "aoi_transitions_all.csv"
+    total_trans.to_csv(out_trans)
+    print(f"\nAggregated transitions (all) -> {out_trans.relative_to(ROOT)}")
+    print(total_trans.to_string())
+
+    for base, mat in sorted(by_trial.items()):
+        out = processed / f"aoi_transitions_{base}.csv"
+        mat.to_csv(out)
+        print(f"Aggregated transitions ({base}) -> {out.relative_to(ROOT)}")
+        print(mat.to_string())
 
     print("\nDone.")

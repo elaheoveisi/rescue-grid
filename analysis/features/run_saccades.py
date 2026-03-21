@@ -60,7 +60,6 @@ def run_saccades(cfg: dict) -> None:
     missing  = eye_cfg["missing"]
     minlen   = sac_cfg["minlen"]
     maxvel   = sac_cfg["maxvel"]
-    maxacc   = sac_cfg["maxacc"]
     maxgap   = sac_cfg.get("maxgap", 200)
 
     summaries = []
@@ -97,7 +96,6 @@ def run_saccades(cfg: dict) -> None:
                 missing=missing,
                 minlen=minlen,
                 maxvel=maxvel,
-                maxacc=maxacc,
                 maxgap=maxgap,
             )
 
@@ -141,7 +139,6 @@ def run_saccades(cfg: dict) -> None:
                 "trial":             trial_id,
                 "minlen":            minlen,
                 "maxvel":            maxvel,
-                "maxacc":            maxacc,
                 "n_saccades":        n,
                 "total_duration_ms": total_ms,
                 "mean_duration_ms":  mean_dur,
