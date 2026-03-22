@@ -18,7 +18,7 @@ expertise:
   P002: expert
   P003: novice
   P004: novice
-  P005: novice
+  P005: expert
   P006: novice
   P007: novice
   P008: expert
@@ -27,6 +27,7 @@ expertise:
 
 
 paths:
+  raw:          data/raw             # raw XDF files per subject
   intermediate: data/intermediate   # output of xdf.py  (per-trial h5/csv)
   processed:    data/processed       # output of fixations/saccades
 
@@ -52,7 +53,7 @@ eyetracker:
 fixation:
   maxdist: 25    # max inter-sample distance in pixels
   mindur:  100   # min fixation duration in ms
-  maxdur:  600  # max fixation duration in ms (removes tracking artifacts)
+  maxdur:  700  # max fixation duration in ms (removes tracking artifacts)
   maxgap:  150  # max allowed time gap between consecutive valid samples (ms); larger gaps break the fixation
 
 saccade:
@@ -110,6 +111,10 @@ continuous_outcomes:
   - q50_game_area_pct_dur
   - q75_game_area_pct_dur
   - q100_game_area_pct_dur
+  - q25_info_panel_pct_dur
+  - q50_info_panel_pct_dur
+  - q75_info_panel_pct_dur
+  - q100_info_panel_pct_dur
   - q25_chat_panel_pct_dur
   - q50_chat_panel_pct_dur
   - q75_chat_panel_pct_dur
@@ -118,14 +123,38 @@ continuous_outcomes:
   - q50_mean_fixation_dur_ms
   - q75_mean_fixation_dur_ms
   - q100_mean_fixation_dur_ms
+  - q25_total_fixation_dur_ms
+  - q50_total_fixation_dur_ms
+  - q75_total_fixation_dur_ms
+  - q100_total_fixation_dur_ms
   - q25_mean_saccade_amp_px
   - q50_mean_saccade_amp_px
   - q75_mean_saccade_amp_px
   - q100_mean_saccade_amp_px
+  - q25_total_saccade_dur_ms
+  - q50_total_saccade_dur_ms
+  - q75_total_saccade_dur_ms
+  - q100_total_saccade_dur_ms
+  - q25_mean_pupil_diam
+  - q50_mean_pupil_diam
+  - q75_mean_pupil_diam
+  - q100_mean_pupil_diam
   - q25_std_pupil_diam
   - q50_std_pupil_diam
   - q75_std_pupil_diam
   - q100_std_pupil_diam
+  - q25_mean_eye_distance
+  - q50_mean_eye_distance
+  - q75_mean_eye_distance
+  - q100_mean_eye_distance
+  - q25_pct_missing_eye
+  - q50_pct_missing_eye
+  - q75_pct_missing_eye
+  - q100_pct_missing_eye
+  - q25_mean_reward
+  - q50_mean_reward
+  - q75_mean_reward
+  - q100_mean_reward
   - q25_victims_per_step
   - q50_victims_per_step
   - q75_victims_per_step
@@ -154,3 +183,44 @@ count_outcomes:
   - n_fixations_game_area
   - n_fixations_info_panel
   - n_fixations_chat_panel
+  # quarter-level counts
+  - q25_n_fixations
+  - q50_n_fixations
+  - q75_n_fixations
+  - q100_n_fixations
+  - q25_n_fixations_game_area
+  - q50_n_fixations_game_area
+  - q75_n_fixations_game_area
+  - q100_n_fixations_game_area
+  - q25_n_fixations_info_panel
+  - q50_n_fixations_info_panel
+  - q75_n_fixations_info_panel
+  - q100_n_fixations_info_panel
+  - q25_n_fixations_chat_panel
+  - q50_n_fixations_chat_panel
+  - q75_n_fixations_chat_panel
+  - q100_n_fixations_chat_panel
+  - q25_n_saccades
+  - q50_n_saccades
+  - q75_n_saccades
+  - q100_n_saccades
+  - q25_n_saccades_game_area
+  - q50_n_saccades_game_area
+  - q75_n_saccades_game_area
+  - q100_n_saccades_game_area
+  - q25_n_saccades_info_panel
+  - q50_n_saccades_info_panel
+  - q75_n_saccades_info_panel
+  - q100_n_saccades_info_panel
+  - q25_n_saccades_chat_panel
+  - q50_n_saccades_chat_panel
+  - q75_n_saccades_chat_panel
+  - q100_n_saccades_chat_panel
+  - q25_n_actions
+  - q50_n_actions
+  - q75_n_actions
+  - q100_n_actions
+  - q25_n_llm_calls
+  - q50_n_llm_calls
+  - q75_n_llm_calls
+  - q100_n_llm_calls

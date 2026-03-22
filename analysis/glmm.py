@@ -31,6 +31,7 @@ def load_features(cfg):
     sac_cfg     = cfg.get("saccade", {})
     sac_mindur  = sac_cfg.get("mindur", 10.0)
     sac_maxdur  = sac_cfg.get("maxdur", 150.0)
+    aois        = cfg.get("aoi", [])
 
     all_rows = []
     for sid in subjects:
@@ -41,7 +42,8 @@ def load_features(cfg):
                             fix_mindur=fix_mindur,
                             fix_maxdur=fix_maxdur,
                             sac_mindur=sac_mindur,
-                            sac_maxdur=sac_maxdur)
+                            sac_maxdur=sac_maxdur,
+                            aois=aois)
         )
 
     if not all_rows:
