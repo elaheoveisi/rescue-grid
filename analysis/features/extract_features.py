@@ -147,8 +147,10 @@ def checkpoint_features(game_df: pd.DataFrame | None, checkpoints: list[int]) ->
 
 
 def fixation_features(fix_df: pd.DataFrame | None,
-                      mindur: float = 50.0,
-                      maxdur: float = 400.0) -> dict:
+                      maxdist: float = 25.0,
+                      mindur: float = 100.0,
+                      maxdur: float = 700.0,
+                      maxgap: float = 150.0) -> dict:
     if fix_df is None or fix_df.empty:
         return {
             "n_fixations":           0,
@@ -172,7 +174,9 @@ def fixation_features(fix_df: pd.DataFrame | None,
 
 
 def saccade_features(sac_df: pd.DataFrame | None,
-                     mindur: float = 10.0,
+                     minlen: float = 10,
+                     maxvel: float = 1000.0,
+                     maxgap: float = 150.0,
                      maxdur: float = 150.0) -> dict:
     if sac_df is None or sac_df.empty:
         return {
@@ -180,9 +184,9 @@ def saccade_features(sac_df: pd.DataFrame | None,
             "mean_saccade_amp_px":  0.0,
             "total_saccade_dur_ms": 0.0,
         }
-    sac_df = sac_df[
-        (sac_df["duration_ms"] >= mindur) & (sac_df["duration_ms"] <= maxdur)
-    ]
+    # sac_df = sac_df[
+    #     (sac_df["duration_ms"] >= mindur) & (sac_df["duration_ms"] <= maxdur)
+    # ]
     if sac_df.empty:
         return {
             "n_saccades":           0,
@@ -230,6 +234,9 @@ def quarter_features(game_df:      pd.DataFrame | None,
 
     aoi_names = [a["name"] for a in aois]
 
+    transition_cols = [f"transitions_{src}_{dst}"
+                       for src in aoi_names for dst in aoi_names if src != dst]
+
     all_cols = (
         ["game_area_pct_dur", "info_panel_pct_dur", "chat_panel_pct_dur"]
         + ["n_fixations"] + [f"n_fixations_{n}" for n in aoi_names]
@@ -238,6 +245,7 @@ def quarter_features(game_df:      pd.DataFrame | None,
         + ["mean_saccade_amp_px", "total_saccade_dur_ms"]
         + ["mean_pupil_diam", "std_pupil_diam", "mean_eye_distance", "pct_missing_eye"]
         + ["mean_reward", "n_actions", "n_llm_calls", "victims_per_step"]
+        + transition_cols
     )
     null_row = {f"q{pct}_{col}": None for pct in quarters for col in all_cols}
 
@@ -337,6 +345,18 @@ def quarter_features(game_df:      pd.DataFrame | None,
                 result[f"q{pct}_game_area_pct_dur"]  = None
                 result[f"q{pct}_info_panel_pct_dur"] = None
                 result[f"q{pct}_chat_panel_pct_dur"] = None
+            # ── AOI transitions (from ordered fixation sequence) ──────────────
+            if aoi_names and "aoi" in win_fix.columns:
+                seq = win_fix[win_fix["aoi"] != "offscreen"]["aoi"].tolist()
+                for src in aoi_names:
+                    for dst in aoi_names:
+                        if src != dst:
+                            result[f"q{pct}_transitions_{src}_{dst}"] = sum(
+                                1 for a, b in zip(seq[:-1], seq[1:]) if a == src and b == dst
+                            )
+            else:
+                for col in transition_cols:
+                    result[f"q{pct}_{col}"] = None
         else:
             result[f"q{pct}_n_fixations"]            = None
             result[f"q{pct}_n_fixations_game_area"]  = None
@@ -347,6 +367,8 @@ def quarter_features(game_df:      pd.DataFrame | None,
             result[f"q{pct}_game_area_pct_dur"]      = None
             result[f"q{pct}_info_panel_pct_dur"]     = None
             result[f"q{pct}_chat_panel_pct_dur"]     = None
+            for col in transition_cols:
+                result[f"q{pct}_{col}"] = None
 
         # ── saccade features ─────────────────────────────────────────────────
         if sac_df is not None and not sac_df.empty and "start_ms" in sac_df.columns:
@@ -469,9 +491,13 @@ def process_subject(subject_id: str,
                     missing_val: float,
                     expertise: str = "unknown",
                     checkpoints: list[int] | None = None,
-                    fix_mindur: float = 50.0,
-                    fix_maxdur: float = 400.0,
-                    sac_mindur: float = 10.0,
+                    fix_maxdist: float = 25.0,
+                    fix_mindur: float = 100.0,
+                    fix_maxdur: float = 700.0,
+                    fix_maxgap: float = 150.0,
+                    sac_minlen: float = 10.0,
+                    sac_maxvel: float = 1000.0,
+                    sac_maxgap: float = 150.0,
                     sac_maxdur: float = 150.0,
                     aois: list[dict] | None = None) -> list[dict]:
     sub_int = intermediate_dir / f"sub-{subject_id}"
@@ -493,12 +519,19 @@ def process_subject(subject_id: str,
 
         streams  = load_trial_data(subject_id, trial_id, intermediate_dir, processed_dir)
 
-        feat: dict = {"subject": subject_id, "trial": trial_id,
-                      "base_trial": base_trial, "run": run, "expertise": expertise}
+        feat: dict = {
+            "subject": subject_id, "trial": trial_id,
+            "base_trial": base_trial, "run": run, "expertise": expertise,
+            "fix_maxdist": fix_maxdist, "fix_mindur": fix_mindur,
+            "fix_maxdur": fix_maxdur,  "fix_maxgap": fix_maxgap,
+            "sac_minlen": sac_minlen,  "sac_maxvel": sac_maxvel,
+            "sac_maxgap": sac_maxgap,
+            "sac_maxdur": sac_maxdur,
+        }
         feat.update(game_features(streams["game"]))
         feat.update(checkpoint_features(streams["game"], checkpoints or []))
-        feat.update(fixation_features(streams["fixations"], mindur=fix_mindur, maxdur=fix_maxdur))
-        feat.update(saccade_features(streams["saccades"], mindur=sac_mindur, maxdur=sac_maxdur))
+        feat.update(fixation_features(streams["fixations"], maxdist=fix_maxdist, mindur=fix_mindur, maxdur=fix_maxdur, maxgap=fix_maxgap))
+        feat.update(saccade_features(streams["saccades"], minlen=sac_minlen, maxvel=sac_maxvel, maxgap=sac_maxgap, maxdur=sac_maxdur))
         feat.update(eye_features(streams["eyetracker"], missing_val))
         feat.update(aoi_features(subject_id, trial_id, processed_dir))
         feat.update(quarter_features(
@@ -534,7 +567,16 @@ if __name__ == "__main__":
     processed_dir    = ROOT / cfg["paths"]["processed"]
     missing_val      = cfg.get("eyetracker", {}).get("missing", 0.0)
     expertise_map    = {str(k): str(v) for k, v in cfg.get("expertise", {}).items()}
-    aois             = cfg.get("aoi", [])
+    aois             = cfg["aoi"]
+    checkpoints      = cfg["checkpoints"]
+    fix_cfg          = cfg["fixation"]
+    fix_maxdist      = fix_cfg["maxdist"]
+    fix_mindur       = fix_cfg["mindur"]
+    sac_cfg          = cfg["saccade"]
+    sac_minlen       = sac_cfg["minlen"]
+    sac_maxvel       = sac_cfg["maxvel"]
+    sac_maxgap       = sac_cfg["maxgap"]
+    sac_maxdur       = sac_cfg["maxdur"]
 
     print(f"Extracting features for {len(subjects)} subject(s)\n")
 
@@ -543,6 +585,13 @@ if __name__ == "__main__":
         all_rows.extend(
             process_subject(sid, intermediate_dir, processed_dir, missing_val,
                             expertise=expertise_map.get(sid, "unknown"),
+                            checkpoints=checkpoints,
+                            fix_maxdist=fix_maxdist,
+                            fix_mindur=fix_mindur,
+                            sac_minlen=sac_minlen,
+                            sac_maxvel=sac_maxvel,
+                            sac_maxgap=sac_maxgap,
+                            sac_maxdur=sac_maxdur,
                             aois=aois)
         )
 

@@ -60,7 +60,8 @@ def run_saccades(cfg: dict) -> None:
     missing  = eye_cfg["missing"]
     minlen   = sac_cfg["minlen"]
     maxvel   = sac_cfg["maxvel"]
-    maxgap   = sac_cfg.get("maxgap", 200)
+    maxgap   = sac_cfg["maxgap"]
+
 
     summaries = []
 
@@ -102,6 +103,8 @@ def run_saccades(cfg: dict) -> None:
             rows = []
             for sac_id, sac in enumerate(end_saccades, start=1):
                 start_t, end_t, duration, xs, ys, xe, ye = sac
+                #if not (mindur <= duration <= maxdur):
+                    #continue
                 amplitude = float(((xe - xs) ** 2 + (ye - ys) ** 2) ** 0.5)
                 rows.append({
                     "saccade_id":  sac_id,

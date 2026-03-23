@@ -53,14 +53,13 @@ eyetracker:
 fixation:
   maxdist: 25    # max inter-sample distance in pixels
   mindur:  100   # min fixation duration in ms
-  maxdur:  700  # max fixation duration in ms (removes tracking artifacts)
-  maxgap:  150  # max allowed time gap between consecutive valid samples (ms); larger gaps break the fixation
+  maxdur:  700   # max fixation duration in ms (removes tracking artifacts)
+  maxgap:  150   # max allowed time gap between consecutive valid samples (ms); larger gaps break the fixation
 
 saccade:
-  minlen:  20     # min saccade duration in ms (detector-level)
-  maxvel:  1000  # velocity threshold px/s  (at 58 Hz, fixation jitter ~300 px/s; saccades ~3000+ px/s)
+  minlen:  10    
+  maxvel:  1000  
   maxgap:  150   # max allowed time gap between consecutive valid samples (ms)
-  mindur:  30  # min saccade duration in ms (post-detection filter)
   maxdur:  150   # max saccade duration in ms (post-detection filter)
 
 
@@ -68,7 +67,7 @@ aoi:
   - name:  game_area      
     x_min: 150
     y_min: 0
-    x_max: 1080
+    x_max: 1230
     y_max: 1080
 
   - name:  info_panel       
@@ -85,7 +84,25 @@ aoi:
 
  
 
-# Outcomes for GLMM
+# Outcomes for per-quarter GLMM (LLM vs no_LLM, × expertise)
+# These are the BASE names — glmm.py prepends q25/q50/q75/q100 automatically.
+quarter_continuous_outcomes:
+  - victims_per_step
+  - chat_panel_pct_dur
+  - game_area_pct_dur
+  - mean_fixation_dur_ms
+  - mean_saccade_amp_px
+  - std_pupil_diam
+
+quarter_count_outcomes:
+  - transitions_game_area_info_panel
+  - transitions_game_area_chat_panel
+  - transitions_info_panel_game_area
+  - transitions_info_panel_chat_panel
+  - transitions_chat_panel_game_area
+  - transitions_chat_panel_info_panel
+
+# Legacy full-feature outcomes (kept for extract_features.py standalone run)
 continuous_outcomes:
   - steps_used_pct
   - total_reward

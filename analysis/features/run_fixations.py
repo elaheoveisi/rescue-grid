@@ -1,15 +1,23 @@
 
 
-import sys
 from pathlib import Path
 
 import pandas as pd
 import yaml
+from igaze.detectors import fixation_detection
+
+
+def fixation_summary(Efix: list) -> dict:
+    if not Efix:
+        return {"count": 0, "mean_duration_ms": 0.0, "total_duration_ms": 0.0}
+    durations = [f[2] for f in Efix]
+    return {
+        "count":            len(durations),
+        "mean_duration_ms": sum(durations) / len(durations),
+        "total_duration_ms": sum(durations),
+    }
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(ROOT / "igaze" / "igaze"))
-
-from fixation import extract_fixations_from_df, fixation_summary  
 
 CONFIG = ROOT / "configs" / "config_analysis.yml"
 
@@ -60,9 +68,9 @@ def run_fixations(cfg: dict) -> None:
     missing  = eye_cfg["missing"]
     maxdist  = fix_cfg["maxdist"]
     mindur   = fix_cfg["mindur"]
-    maxgap   = fix_cfg.get("maxgap", 200)
 
-    summaries = []
+    summaries      = []
+    best_summaries = []
 
     for sid in subjects:
         data = load_subject_trials(sid, intermediate)
@@ -74,6 +82,9 @@ def run_fixations(cfg: dict) -> None:
         print(f"[SUB]  {sid}")
 
         for trial_id, streams in data.items():
+            if not trial_id.endswith("_best"):
+                continue
+
             eye_df = streams["eyetracker"].copy()
 
             if eye_df.empty:
@@ -85,16 +96,13 @@ def run_fixations(cfg: dict) -> None:
             eye_df[y_col] = eye_df[y_col] * screen_h
 
             # run fixation detection
-            _, Efix = extract_fixations_from_df(
-                eye_df,
-                x_col=x_col,
-                y_col=y_col,
-                time_col=time_col,
-                average_eyes=False,
+            _, Efix = fixation_detection(
+                x=eye_df[x_col].to_numpy(),
+                y=eye_df[y_col].to_numpy(),
+                time=eye_df[time_col].to_numpy(),
                 missing=missing,
                 maxdist=maxdist,
                 mindur=mindur,
-                maxgap=maxgap,
             )
             summary = fixation_summary(Efix)
 
@@ -114,13 +122,14 @@ def run_fixations(cfg: dict) -> None:
                 fix_df.to_hdf(out_dir / "fixations.h5", key="fixations", mode="w")
                 streams["fixations"] = fix_df
 
-            summaries.append({
-                "subject":  sid,
-                "trial":    trial_id,
-                "maxdist":  maxdist,
-                "mindur":   mindur,
+            row = {
+                "subject": sid, "trial": trial_id,
+                "maxdist": maxdist, "mindur": mindur,
                 **summary,
-            })
+            }
+            summaries.append(row)
+            if trial_id.endswith("_best"):
+                best_summaries.append(row)
 
     # save overall summary
     if summaries:
@@ -128,8 +137,15 @@ def run_fixations(cfg: dict) -> None:
         out_path   = processed / "fixations_summary.csv"
         out_path.parent.mkdir(parents=True, exist_ok=True)
         summary_df.to_csv(out_path, index=False)
-        print(f"\nSummary -> {out_path.relative_to(ROOT)}")
-        print(summary_df.to_string(index=False))
+        print(f"\nSummary          -> {out_path.relative_to(ROOT)}")
+
+    # save best-run summary
+    if best_summaries:
+        best_df  = pd.DataFrame(best_summaries)
+        best_out = processed / "fixations_best_run_summary.csv"
+        best_df.to_csv(best_out, index=False)
+        print(f"Best-run summary -> {best_out.relative_to(ROOT)}")
+        print(best_df.to_string(index=False))
     else:
         print("\nNo fixations computed.")
 

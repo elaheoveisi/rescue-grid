@@ -8,6 +8,7 @@ import yaml
 import statsmodels.formula.api as smf
 from scipy.stats import norm
 from statsmodels.genmod.bayes_mixed_glm import PoissonBayesMixedGLM
+from statsmodels.stats.multitest import multipletests
 from statsmodels.tools.sm_exceptions import ConvergenceWarning
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -24,14 +25,16 @@ def load_features(cfg):
     missing_val      = cfg.get("eyetracker", {}).get("missing", 0.0)
     expertise_map    = {str(k): str(v) for k, v in cfg.get("expertise", {}).items()}
 
-    checkpoints = cfg.get("checkpoints", [])
-    fix_cfg     = cfg.get("fixation", {})
-    fix_mindur  = fix_cfg.get("mindur", 50.0)
-    fix_maxdur  = fix_cfg.get("maxdur", 400.0)
-    sac_cfg     = cfg.get("saccade", {})
-    sac_mindur  = sac_cfg.get("mindur", 10.0)
-    sac_maxdur  = sac_cfg.get("maxdur", 150.0)
-    aois        = cfg.get("aoi", [])
+    checkpoints = cfg["checkpoints"]
+    fix_cfg     = cfg["fixation"]
+    fix_maxdist = fix_cfg["maxdist"]
+    fix_mindur  = fix_cfg["mindur"]
+    sac_cfg     = cfg["saccade"]
+    sac_minlen  = sac_cfg["minlen"]
+    sac_maxvel  = sac_cfg["maxvel"]
+    sac_maxgap  = sac_cfg["maxgap"]
+    sac_maxdur  = sac_cfg["maxdur"]
+    aois        = cfg["aoi"]
 
     all_rows = []
     for sid in subjects:
@@ -39,9 +42,11 @@ def load_features(cfg):
             process_subject(sid, intermediate_dir, processed_dir, missing_val,
                             expertise=expertise_map.get(sid, "unknown"),
                             checkpoints=checkpoints,
+                            fix_maxdist=fix_maxdist,
                             fix_mindur=fix_mindur,
-                            fix_maxdur=fix_maxdur,
-                            sac_mindur=sac_mindur,
+                            sac_minlen=sac_minlen,
+                            sac_maxvel=sac_maxvel,
+                            sac_maxgap=sac_maxgap,
                             sac_maxdur=sac_maxdur,
                             aois=aois)
         )
@@ -65,13 +70,18 @@ def load_features(cfg):
     )
     df["trial"] = df["base_trial"]
 
+    # derive condition: trial_dummy = no_llm baseline, all other trials = llm
+    df["condition"] = df["base_trial"].apply(
+        lambda t: "no_llm" if t == "trial_dummy" else "llm"
+    )
+
     return df
 
 
 def _fixed_effects_formula(outcome, df):
-    formula = f"{outcome} ~ C(trial, Treatment(reference='trial_dummy'))"
+    formula = f"{outcome} ~ C(condition, Treatment(reference='no_llm'))"
     if "expertise" in df.columns and df["expertise"].nunique() > 1:
-        formula += " + C(expertise)"
+        formula += " * C(expertise, Treatment(reference='novice'))"
     return formula
 
 
@@ -112,79 +122,138 @@ def _run_outcome_models(df, outcomes, fit_fn):
     return results
 
 
-def run_glmm_models(df, continuous_outcomes, count_outcomes):
-    mixed = _run_outcome_models(df, continuous_outcomes, _fit_mixedlm)
-    count = _run_outcome_models(df, count_outcomes, _fit_poisson_glmm)
-    
+def _apply_fdr(results_df: pd.DataFrame) -> pd.DataFrame:
+    """Add p_value_fdr column using Benjamini-Hochberg correction."""
+    if results_df.empty:
+        return results_df
+    results_df = results_df.copy()
+    valid_mask = results_df["p_value"].notna()
+    if valid_mask.sum() == 0:
+        results_df["p_value_fdr"] = np.nan
+        return results_df
+    pvals = results_df.loc[valid_mask, "p_value"].to_numpy()
+    _, pvals_fdr, _, _ = multipletests(pvals, method="fdr_bh")
+    results_df["p_value_fdr"] = np.nan
+    results_df.loc[valid_mask, "p_value_fdr"] = pvals_fdr
+    return results_df
+
+
+def run_glmm_quarter(df, continuous_outcomes, count_outcomes, quarter):
+    """Run mixed LMM + Poisson GLMM for one quarter's outcomes, with FDR."""
+    pct_continuous = [f"q{quarter}_{o}" for o in continuous_outcomes]
+    pct_count      = [f"q{quarter}_{o}" for o in count_outcomes]
+
+    mixed = _run_outcome_models(df, pct_continuous, _fit_mixedlm)
+    count = _run_outcome_models(df, pct_count,      _fit_poisson_glmm)
+
     mixed_rows = []
     for outcome, model in mixed.items():
         for term in model.params.index:
             mixed_rows.append({
-                "outcome": outcome,
-                "term": term,
-                "coef": model.params[term],
-                "se": model.bse.get(term),
-                "p_value": model.pvalues.get(term)
+                "quarter":   quarter,
+                "outcome":   outcome,
+                "term":      term,
+                "coef":      model.params[term],
+                "se":        model.bse.get(term),
+                "p_value":   model.pvalues.get(term),
             })
-            
+
     count_rows = []
     for outcome, model in count.items():
         fe_mean = np.asarray(model.fe_mean)
-        fe_sd = np.asarray(model.fe_sd)
+        fe_sd   = np.asarray(model.fe_sd)
         for term, coef, se in zip(model.model.exog_names, fe_mean, fe_sd):
             p_value = float(2 * norm.sf(abs(coef / se))) if se > 0 else None
             count_rows.append({
-                "outcome": outcome,
-                "term": term,
-                "coef": coef,
-                "se": se,
-                "p_value": p_value
+                "quarter":  quarter,
+                "outcome":  outcome,
+                "term":     term,
+                "coef":     coef,
+                "se":       se,
+                "p_value":  p_value,
             })
-            
-    return pd.DataFrame(mixed_rows), pd.DataFrame(count_rows)
+
+    mixed_df = _apply_fdr(pd.DataFrame(mixed_rows))
+    count_df = _apply_fdr(pd.DataFrame(count_rows))
+    return mixed_df, count_df
 
 
 def run_from_config(config_path=CONFIG, verbose=True):
     with open(config_path) as f:
         cfg = yaml.safe_load(f)
-        
-    continuous_outcomes = cfg.get("continuous_outcomes", [])
-    count_outcomes = cfg.get("count_outcomes", [])
-    
+
+    continuous_outcomes = cfg["quarter_continuous_outcomes"]
+    count_outcomes      = cfg["quarter_count_outcomes"]
+    quarters            = cfg["checkpoints"]
+
     if verbose:
-        print(f"Loading features for {len(cfg.get('sub', []))} subject(s) from {cfg['paths']['intermediate']} ...")
-        
+        print(f"Loading features for {len(cfg.get('sub', []))} subject(s) ...")
+
     df = load_features(cfg)
-    
-    if verbose: 
-        print(f"  {len(df)} rows  x  {len(df.columns)} columns\n")
-        
+
+    if df.empty:
+        print("No features — check that intermediate data exists.")
+        return {}, {}
+
+    if verbose:
+        print(f"  {len(df)} rows x {len(df.columns)} cols")
+        print(f"  condition counts:\n{df['condition'].value_counts().to_string()}\n")
+
     processed_dir = ROOT / cfg["paths"]["processed"]
-    mixed_df, count_df = run_glmm_models(df, continuous_outcomes, count_outcomes)
-    
-    if not mixed_df.empty:
-        out_path = processed_dir / "glmm_mixed_results.csv"
-        mixed_df.to_csv(out_path, index=False)
-        if verbose: 
-            print(f"Mixed LMM results -> {out_path.relative_to(ROOT)}\n{mixed_df.to_string(index=False)}")
-            
-    if not count_df.empty:
-        out_path = processed_dir / "glmm_count_results.csv"
-        count_df.to_csv(out_path, index=False)
-        if verbose: 
-            print(f"\nCount (Poisson GLMM) results -> {out_path.relative_to(ROOT)}\n{count_df.to_string(index=False)}")
-            
-    if mixed_df.empty and count_df.empty and verbose:
-        print("No models were fitted — check that intermediate data exists for subjects in config.")
-        
-    all_outcomes = count_outcomes + continuous_outcomes
-    available = [c for c in all_outcomes if c in df.columns]
-    
+    processed_dir.mkdir(parents=True, exist_ok=True)
+
+    all_mixed, all_count = [], []
+
+    for q in quarters:
+        if verbose:
+            print(f"── Quarter {q}% ──────────────────────────────────────")
+        mixed_df, count_df = run_glmm_quarter(df, continuous_outcomes, count_outcomes, q)
+
+        if not mixed_df.empty:
+            out = processed_dir / f"glmm_q{q}_mixed.csv"
+            mixed_df.to_csv(out, index=False)
+            if verbose:
+                print(f"  Mixed LMM  -> {out.relative_to(ROOT)}")
+                print(mixed_df.to_string(index=False))
+
+        if not count_df.empty:
+            out = processed_dir / f"glmm_q{q}_count.csv"
+            count_df.to_csv(out, index=False)
+            if verbose:
+                print(f"  Count GLMM -> {out.relative_to(ROOT)}")
+                print(count_df.to_string(index=False))
+
+        if mixed_df.empty and count_df.empty and verbose:
+            print(f"  [SKIP] no models fitted for quarter {q}")
+
+        all_mixed.append(mixed_df)
+        all_count.append(count_df)
+
+    # combined results across all quarters
+    combined_mixed = pd.concat(all_mixed, ignore_index=True) if all_mixed else pd.DataFrame()
+    combined_count = pd.concat(all_count, ignore_index=True) if all_count else pd.DataFrame()
+
+    if not combined_mixed.empty:
+        combined_mixed.to_csv(processed_dir / "glmm_all_mixed.csv", index=False)
+    if not combined_count.empty:
+        combined_count.to_csv(processed_dir / "glmm_all_count.csv", index=False)
+
+    # means by trial (for all quarter outcomes)
+    all_outcome_cols = (
+        [f"q{q}_{o}" for q in quarters for o in continuous_outcomes]
+        + [f"q{q}_{o}" for q in quarters for o in count_outcomes]
+    )
+    available = [c for c in all_outcome_cols if c in df.columns]
     means_df = df.groupby("trial")[available].mean().round(3)
-    out_path = processed_dir / "outcome_means_by_trial.csv"
-    means_df.to_csv(out_path)
-    
-    if verbose: 
-        print(f"\nOutcome means by trial -> {out_path.relative_to(ROOT)}\n{means_df.to_string()}\nDone.")
-        
-    return mixed_df, count_df, means_df
+    means_df.to_csv(processed_dir / "outcome_means_by_trial.csv")
+
+    if verbose:
+        print(f"\nMeans by trial -> {(processed_dir / 'outcome_means_by_trial.csv').relative_to(ROOT)}")
+        print(means_df.to_string())
+        print("\nDone.")
+
+    return combined_mixed, combined_count
+
+
+if __name__ == "__main__":
+    run_from_config()
