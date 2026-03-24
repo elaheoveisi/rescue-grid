@@ -91,6 +91,12 @@ def run_fixations(cfg: dict) -> None:
                 print(f"         {trial_id:35s}  empty eyetracker — skipping")
                 continue
 
+            # convert timestamps to relative ms
+            eye_df[time_col] = (eye_df[time_col] - eye_df[time_col].iloc[0]) * 1000.0
+
+            # drop missing gaze samples
+            eye_df = eye_df.dropna(subset=[x_col, y_col])
+
             # scale normalized gaze (0-1) to pixels for distance-based detection
             eye_df[x_col] = eye_df[x_col] * screen_w
             eye_df[y_col] = eye_df[y_col] * screen_h

@@ -3,6 +3,7 @@ from pathlib import Path
 
 from analysis.data.xdf import run_from_config as run_xdf
 from analysis.features.run_fixations import run_fixations
+from analysis.features.run_saccades import run_saccades
 from analysis.glmm import run_from_config
 from src.utils import skip_run
 
@@ -16,8 +17,11 @@ if __name__ == "__main__":
 	with skip_run("skip", "xdf") as check, check():
 		run_xdf()
 
-	with skip_run("skip", "fixations") as check, check():
+	with skip_run("run", "fixations") as check, check():
 		run_fixations(cfg)
 
-	with skip_run("run", "glmm") as check, check():
+	with skip_run("skip", "saccades") as check, check():
+		run_saccades(cfg)
+
+	with skip_run("skip", "glmm") as check, check():
 		run_from_config()

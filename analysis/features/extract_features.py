@@ -176,7 +176,6 @@ def fixation_features(fix_df: pd.DataFrame | None,
 def saccade_features(sac_df: pd.DataFrame | None,
                      minlen: float = 10,
                      maxvel: float = 1000.0,
-                     maxgap: float = 150.0,
                      maxdur: float = 150.0) -> dict:
     if sac_df is None or sac_df.empty:
         return {
@@ -497,7 +496,6 @@ def process_subject(subject_id: str,
                     fix_maxgap: float = 150.0,
                     sac_minlen: float = 10.0,
                     sac_maxvel: float = 1000.0,
-                    sac_maxgap: float = 150.0,
                     sac_maxdur: float = 150.0,
                     aois: list[dict] | None = None) -> list[dict]:
     sub_int = intermediate_dir / f"sub-{subject_id}"
@@ -525,13 +523,12 @@ def process_subject(subject_id: str,
             "fix_maxdist": fix_maxdist, "fix_mindur": fix_mindur,
             "fix_maxdur": fix_maxdur,  "fix_maxgap": fix_maxgap,
             "sac_minlen": sac_minlen,  "sac_maxvel": sac_maxvel,
-            "sac_maxgap": sac_maxgap,
             "sac_maxdur": sac_maxdur,
         }
         feat.update(game_features(streams["game"]))
         feat.update(checkpoint_features(streams["game"], checkpoints or []))
         feat.update(fixation_features(streams["fixations"], maxdist=fix_maxdist, mindur=fix_mindur, maxdur=fix_maxdur, maxgap=fix_maxgap))
-        feat.update(saccade_features(streams["saccades"], minlen=sac_minlen, maxvel=sac_maxvel, maxgap=sac_maxgap, maxdur=sac_maxdur))
+        feat.update(saccade_features(streams["saccades"], minlen=sac_minlen, maxvel=sac_maxvel, maxdur=sac_maxdur))
         feat.update(eye_features(streams["eyetracker"], missing_val))
         feat.update(aoi_features(subject_id, trial_id, processed_dir))
         feat.update(quarter_features(
@@ -575,7 +572,6 @@ if __name__ == "__main__":
     sac_cfg          = cfg["saccade"]
     sac_minlen       = sac_cfg["minlen"]
     sac_maxvel       = sac_cfg["maxvel"]
-    sac_maxgap       = sac_cfg["maxgap"]
     sac_maxdur       = sac_cfg["maxdur"]
 
     print(f"Extracting features for {len(subjects)} subject(s)\n")
@@ -590,7 +586,6 @@ if __name__ == "__main__":
                             fix_mindur=fix_mindur,
                             sac_minlen=sac_minlen,
                             sac_maxvel=sac_maxvel,
-                            sac_maxgap=sac_maxgap,
                             sac_maxdur=sac_maxdur,
                             aois=aois)
         )

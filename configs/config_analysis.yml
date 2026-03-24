@@ -53,13 +53,12 @@ eyetracker:
 fixation:
   maxdist: 25    # max inter-sample distance in pixels
   mindur:  100   # min fixation duration in ms
-  maxdur:  700   # max fixation duration in ms (removes tracking artifacts)
-  maxgap:  150   # max allowed time gap between consecutive valid samples (ms); larger gaps break the fixation
+  #maxdur:  700   # max fixation duration in ms (removes tracking artifacts)
 
 saccade:
-  minlen:  10    
-  maxvel:  1000  
-  maxgap:  150   # max allowed time gap between consecutive valid samples (ms)
+  minlen:  10
+  maxvel:  1000
+  maxacc:  340   # acceleration threshold in pixels/s²
   maxdur:  150   # max saccade duration in ms (post-detection filter)
 
 

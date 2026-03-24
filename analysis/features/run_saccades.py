@@ -60,7 +60,7 @@ def run_saccades(cfg: dict) -> None:
     missing  = eye_cfg["missing"]
     minlen   = sac_cfg["minlen"]
     maxvel   = sac_cfg["maxvel"]
-    maxgap   = sac_cfg["maxgap"]
+    maxacc   = sac_cfg["maxacc"]
 
 
     summaries = []
@@ -75,11 +75,17 @@ def run_saccades(cfg: dict) -> None:
         print(f"[SUB]  {sid}")
 
         for trial_id, streams in data.items():
+            if not trial_id.endswith("_best"):
+                continue
+
             eye_df = streams["eyetracker"].copy()
 
             if eye_df.empty:
                 print(f"         {trial_id:35s}  empty eyetracker — skipping")
                 continue
+
+            # drop missing gaze samples
+            eye_df = eye_df.dropna(subset=[x_col, y_col])
 
             # convert timestamps to relative ms
             eye_df[time_col] = (eye_df[time_col] - eye_df[time_col].iloc[0]) * 1000.0
@@ -97,7 +103,7 @@ def run_saccades(cfg: dict) -> None:
                 missing=missing,
                 minlen=minlen,
                 maxvel=maxvel,
-                maxgap=maxgap,
+                maxacc=maxacc,
             )
 
             rows = []

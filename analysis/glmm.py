@@ -32,7 +32,6 @@ def load_features(cfg):
     sac_cfg     = cfg["saccade"]
     sac_minlen  = sac_cfg["minlen"]
     sac_maxvel  = sac_cfg["maxvel"]
-    sac_maxgap  = sac_cfg["maxgap"]
     sac_maxdur  = sac_cfg["maxdur"]
     aois        = cfg["aoi"]
 
@@ -46,7 +45,6 @@ def load_features(cfg):
                             fix_mindur=fix_mindur,
                             sac_minlen=sac_minlen,
                             sac_maxvel=sac_maxvel,
-                            sac_maxgap=sac_maxgap,
                             sac_maxdur=sac_maxdur,
                             aois=aois)
         )
@@ -79,7 +77,9 @@ def load_features(cfg):
 
 
 def _fixed_effects_formula(outcome, df):
-    formula = f"{outcome} ~ C(condition, Treatment(reference='no_llm'))"
+    conditions = df["condition"].dropna().unique().tolist()
+    ref = "no_llm" if "no_llm" in conditions else conditions[0]
+    formula = f"{outcome} ~ C(condition, Treatment(reference='{ref}'))"
     if "expertise" in df.columns and df["expertise"].nunique() > 1:
         formula += " * C(expertise, Treatment(reference='novice'))"
     return formula
