@@ -3,17 +3,14 @@ from pathlib import Path
 import ray
 import yaml
 from dotenv import load_dotenv
+from experiment.game import SARGame
+from experiment.tutorial import SARTutorial
 from ixp.experiment import Experiment
+from ixp.individual_difference.mot import MOT
+from ixp.individual_difference.vs import VS
 from ixp.sensors.eye_tracker.tobii import TobiiEyeTracker
 from ixp.surveys.nasa_tlx import NasaTLX
 from ixp.surveys.sart import SART
-from ixp.individual_difference.vs import VS
-from ixp.individual_difference.mot import MOT
-
-from experiment.tutorial import SARTutorial
-
-
-from experiment.game import SARGame
 from utils import skip_run
 
 load_dotenv()
@@ -30,32 +27,47 @@ with skip_run("skip", "tobii_calibration") as check, check():
     tobii.initialize()
     tobii.calibrate()
 
-
-with skip_run("run", "sar_experiment") as check, check():
+with skip_run("run", "sar_experiment_test") as check, check():
     ray.init(ignore_reinit_error=True, _system_config={"metrics_report_interval_ms": 0})
     experiment = Experiment(config)
 
-    # experiment.add_task(
-    #     name="visual_search",
-    #     task_cls=VS,
-    #     task_config={"config": config["vs"]},
-    #     order=1,
-    #     instructions=instructions["visual_search"],
-    # )
-    # experiment.add_task(
-    #     name="multi_object_tracking",
-    #     task_cls=MOT,
-    #     task_config={"config": config["mot"]},
-    #     order=2,
-    #     instructions=instructions["multi_object_tracking"],
-    # )
-    # experiment.add_task(
-    #     name="practice",
-    #     task_cls=SARTutorial,
-    #     task_config={"config": config["game"]},
-    #     order=2,
-    #     instructions=instructions["practice"],
-    # )
+    experiment.add_task(
+        name="main_game",
+        task_cls=SARGame,
+        task_config={"config": config["game"]},
+        order=3,
+        # instructions=instructions["main_game"],
+    )
+
+    # Run the experiment
+    experiment.run()
+    experiment.close()
+
+with skip_run("skip", "sar_experiment") as check, check():
+    ray.init(ignore_reinit_error=True, _system_config={"metrics_report_interval_ms": 0})
+    experiment = Experiment(config)
+
+    experiment.add_task(
+        name="visual_search",
+        task_cls=VS,
+        task_config={"config": config["vs"]},
+        order=1,
+        instructions=instructions["visual_search"],
+    )
+    experiment.add_task(
+        name="multi_object_tracking",
+        task_cls=MOT,
+        task_config={"config": config["mot"]},
+        order=2,
+        instructions=instructions["multi_object_tracking"],
+    )
+    experiment.add_task(
+        name="practice",
+        task_cls=SARTutorial,
+        task_config={"config": config["game"]},
+        order=2,
+        instructions=instructions["practice"],
+    )
     experiment.add_task(
         name="main_game",
         task_cls=SARGame,

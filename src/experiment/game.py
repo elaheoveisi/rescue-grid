@@ -5,11 +5,10 @@ from typing import Any
 
 import pygame
 import ujson
-from ixp.task import Block, LSLTrial, Task
-
+from game.core.camera import AgentFOVCamera
 from game.gui.main import SAREnvGUI
 from game.sar.env import build_sar_env
-from game.core.camera import AgentFOVCamera
+from ixp.task import Block, LSLTrial, Task
 
 
 def _show_break_screen(display: int = 0, recalibrate: bool = False) -> None:
@@ -65,13 +64,14 @@ class SARGameTrial(LSLTrial):
         screen_height = pygame.display.Info().current_h
         env = build_sar_env(
             screen_size=screen_height,
+            num_fake_victims=2,
+            num_real_victims=5,
             num_rows=config.get("num_rows"),
             num_cols=config.get("num_cols"),
             camera_strategy=AgentFOVCamera(),
         )
         os.environ["SDL_VIDEO_FULLSCREEN_DISPLAY"] = str(config.get("display", 0))
         self.gui = SAREnvGUI(env, config=config)
-        self.gui.info_panel.set_trial_name(self.trial_id)
         self.gui.reset()
         self.gui.running = True
         self.gui.user.total_steps = 0

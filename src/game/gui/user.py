@@ -1,4 +1,5 @@
 import threading
+import time
 
 from minigrid.core.actions import Actions
 from minigrid.manual_control import ManualControl
@@ -13,12 +14,14 @@ class User(ManualControl):
         prompt_type: str = "detailed",
         model: str = "gpt-4o-mini",
         provider: str = "openai",
+        max_time: float = 5.0,
     ):
         self.env = env
         self.obs = None
         self.prompt_type = prompt_type
         self.model = model
         self.provider = provider
+        self.max_time = max_time * 60  # convert minutes to seconds
         self.last_llm_response: str | None = None
         self.total_steps = 0
         self.episode_ended = False
@@ -26,6 +29,7 @@ class User(ManualControl):
         self.steps_since_last_llm = 0
         self.llm_thread: threading.Thread | None = None
         self.llm_result: tuple | None = None
+        self._start_time: float | None = None
 
     def ask_llm_async(self):
         """Start a background thread to ask the LLM. No-op if one is already running."""
@@ -41,10 +45,19 @@ class User(ManualControl):
         except Exception as e:
             self.llm_result = ("error", str(e))
 
+    @property
+    def remaining_time(self) -> float:
+        if self._start_time is None:
+            return self.max_time
+        return max(0.0, self.max_time - (time.monotonic() - self._start_time))
+
     def step(self, action: Actions):
+        if self._start_time is None:
+            self._start_time = time.monotonic()
         self.obs, reward, terminated, truncated, info = self.env.step(action)
         self.last_action = int(action)
         self.last_reward = float(reward)
+        self.total_reward += self.last_reward
         self.terminated = bool(terminated)
         self.truncated = bool(truncated)
         self.total_steps += 1
@@ -87,8 +100,10 @@ class User(ManualControl):
         obs, info = self.env.reset()
         self.last_action = None
         self.last_reward = 0.0
+        self.total_reward = 0.0
         self.terminated = False
         self.truncated = False
+        self._start_time = None
         self.obs = obs
         if self.on_reset:
             self.on_reset()

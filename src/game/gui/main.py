@@ -17,6 +17,7 @@ class SAREnvGUI:
             prompt_type=config.get("prompt_type", "detailed"),
             model=config.get("model", "gpt-4o-mini"),
             provider=config.get("provider", "openai"),
+            max_time=config.get("max_time", 5.0),
         )
         self.llm_nudge_interval = config.get("llm_nudge_interval", 50)
         self.fullscreen = config.get("fullscreen", False)
@@ -89,7 +90,7 @@ class SAREnvGUI:
             game_surface, (self.game_size, self.game_size)
         )
         surface.blit(game_surface, (0, 0))
-        self.info_panel.render(self.user.obs or {}, self.user.env)
+        self.info_panel.render(self.user.obs or {}, self.user.env, self.user)
         time_delta = self.clock.tick(30) / 1000.0
         self.manager.update(time_delta)
         self.manager.draw_ui(surface)
