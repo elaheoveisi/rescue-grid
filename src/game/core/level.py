@@ -49,7 +49,7 @@ class SARLevelGen(LevelGen):
     def get_camera_view(self, **kwargs) -> np.ndarray:
         """Get current camera view using the configured strategy."""
         room = self.room_from_pos(*self.agent_pos)
-        return self.camera.get_crop(
+        img = self.camera.get_crop(
             grid=self.grid,
             agent_pos=self.agent_pos,
             agent_dir=self.agent_dir,
@@ -60,6 +60,8 @@ class SARLevelGen(LevelGen):
             env=self,
             **kwargs,
         )
+
+        return img
 
     def render(self):
         """Render the environment."""

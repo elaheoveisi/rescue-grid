@@ -210,9 +210,16 @@ class PickupVictimEnv(SARLevelGen):
             num_doors=self._count_objects_by_type(Door),
         )
         self.max_steps = self.fixed_max_steps
+        self._deplete_amount = 1.0 / self.fixed_max_steps
         obs, info = super().reset(**kwargs)
         self.instrs.reset_verifier(self)
         self.total_victims = self._count_objects_by_type(REAL_VICTIMS)
+        self._victim_positions = [
+            (x, y, self.grid.get(x, y))
+            for y in range(self.height)
+            for x in range(self.width)
+            if isinstance(self.grid.get(x, y), REAL_VICTIMS)
+        ]
         self.camera.reset()
         obs = self.observation.process_observation(obs, self)
         return obs, info
@@ -255,6 +262,10 @@ class PickupVictimEnv(SARLevelGen):
     def step(self, action):
         if action == self.actions.pickup:
             obs, reward, terminated, truncated, info = self.rescue_action.execute()
+            self._victim_positions = [
+                (x, y, obj) for x, y, obj in self._victim_positions
+                if self.grid.get(x, y) is obj
+            ]
 
             # Verify if mission is complete after pickup action
             if hasattr(self, "instrs") and self.instrs is not None:
@@ -266,6 +277,11 @@ class PickupVictimEnv(SARLevelGen):
 
         else:
             obs, reward, terminated, truncated, info = self._step(action)
+
+        x0, y0, x1, y1 = self.camera.get_visible_bounds(self.width, self.height)
+        for x, y, obj in self._victim_positions:
+            if x0 <= x < x1 and y0 <= y < y1:
+                obj.deplete(self._deplete_amount)
 
         obs = self.observation.process_observation(obs, self)
         return obs, reward, terminated, truncated, info

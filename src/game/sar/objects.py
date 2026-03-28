@@ -26,6 +26,14 @@ for new_object in new_objects:
 class VictimBase(WorldObj):
     """Base class for all victim objects with common functionality."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.health = 1.0
+
+    def deplete(self, amount):
+        """Decrease health by amount, clamped to 0."""
+        self.health = max(0.0, self.health - amount)
+
     def can_overlap(self):
         """Victims cannot be walked over."""
         return False
@@ -79,18 +87,23 @@ class Victim(VictimBase):
         self.direction = direction
         super().__init__(f"victim_{direction}", color)
 
+    def encode(self):
+        type_idx, color_idx, _ = super().encode()
+        return (type_idx, color_idx, int(self.health * 20))
+
     def _get_render_coords(self):
         return self._COORDS[self.direction]
 
-
-# Enum-style constants for real victims
-class RealVictims:
-    """Factory class for creating real victim instances."""
-
-    UP = lambda color="red": Victim("up", color)
-    DOWN = lambda color="red": Victim("down", color)
-    LEFT = lambda color="red": Victim("left", color)
-    RIGHT = lambda color="red": Victim("right", color)
+    def render(self, img):
+        if int(self.health * 20) == 0:
+            return img
+        fill_coords(
+            img,
+            point_in_rect(0.1, 0.95, 0.95 - self.health * 0.90, 0.95),
+            (255, 255, 255),
+        )
+        super().render(img)
+        return img
 
 
 class FakeVictim(VictimBase):
@@ -149,25 +162,6 @@ class FakeVictim(VictimBase):
         return self._COORDS[(self.shift, self.direction)]
 
 
-# Enum-style constants for fake victims
-class FakeVictims:
-    """Factory class for creating fake victim instances."""
-
-    # Left-shifted variants
-    LEFT_UP = lambda color="red": FakeVictim("left", "up", color)
-    LEFT_DOWN = lambda color="red": FakeVictim("left", "down", color)
-    LEFT_LEFT = lambda color="red": FakeVictim("left", "left", color)
-    LEFT_RIGHT = lambda color="red": FakeVictim("left", "right", color)
-
-    # Right-shifted variants
-    RIGHT_UP = lambda color="red": FakeVictim("right", "up", color)
-    RIGHT_DOWN = lambda color="red": FakeVictim("right", "down", color)
-    RIGHT_LEFT = lambda color="red": FakeVictim("right", "left", color)
-    RIGHT_RIGHT = lambda color="red": FakeVictim("right", "right", color)
-
-
 # Constants for victim type checking
-# These are tuples of the actual Victim and FakeVictim classes for isinstance() checks
 REAL_VICTIMS = (Victim,)
 FAKE_VICTIMS = (FakeVictim,)
-ALL_VICTIMS = REAL_VICTIMS + FAKE_VICTIMS

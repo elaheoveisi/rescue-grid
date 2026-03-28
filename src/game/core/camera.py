@@ -21,6 +21,10 @@ class CameraStrategy(ABC):
         """Return a cropped view of the grid."""
         pass
 
+    def get_visible_bounds(self, grid_width: int, grid_height: int) -> tuple[int, int, int, int]:
+        """Return (x0, y0, x1, y1) tile bounds currently visible. Default: full grid."""
+        return 0, 0, grid_width, grid_height
+
 
 class FullviewCamera(CameraStrategy):
     def __init__(self, tile_size=32):
@@ -132,6 +136,10 @@ class EdgeFollowCamera(CameraStrategy):
 
         return full_img[py_min:py_max, px_min:px_max, :]
 
+    def get_visible_bounds(self, grid_width: int, grid_height: int) -> tuple[int, int, int, int]:
+        view_w, view_h = self.config.view_tiles
+        return self.top_x, self.top_y, self.top_x + view_w, self.top_y + view_h
+
     def reset(self):
         """Reset camera state."""
         self.initialized = False
@@ -149,6 +157,7 @@ class AgentFOVCamera(CameraStrategy):
         self.config = config or CameraConfig()
 
     def get_crop(self, grid, agent_pos, agent_dir, room=None, **_) -> np.ndarray:
+        self._last_room = room
         ts = self.config.tile_size
         full_img = grid.render(ts, agent_pos, agent_dir, highlight_mask=None)
 
@@ -159,8 +168,15 @@ class AgentFOVCamera(CameraStrategy):
         rw, rh = room.size
         return full_img[ry * ts:(ry + rh) * ts, rx * ts:(rx + rw) * ts, :]
 
+    def get_visible_bounds(self, grid_width: int, grid_height: int) -> tuple[int, int, int, int]:
+        if self._last_room is None:
+            return 0, 0, grid_width, grid_height
+        rx, ry = self._last_room.top
+        rw, rh = self._last_room.size
+        return rx, ry, rx + rw, ry + rh
+
     def reset(self):
-        pass
+        self._last_room = None
 
 
 class AgentConeCamera(AgentFOVCamera):
