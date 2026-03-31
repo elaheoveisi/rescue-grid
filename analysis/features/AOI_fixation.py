@@ -26,11 +26,7 @@ def assign_aoi(x_px: float, y_px: float, aois: list[dict]) -> str:
 
 
 def aoi_transition_matrix(fix_aoi_df: pd.DataFrame, aois: list[dict]) -> pd.DataFrame:
-    """Compute AOI-to-AOI transition counts from the ordered fixation sequence.
 
-    Excludes offscreen fixations from transitions.
-    Returns a DataFrame with rows=from, cols=to, values=counts.
-    """
     labels   = [a["name"] for a in aois]
     matrix   = pd.DataFrame(0, index=labels, columns=labels)
     sequence = fix_aoi_df[fix_aoi_df["aoi"] != "offscreen"]["aoi"].tolist()
@@ -54,13 +50,7 @@ def label_fixations(fix_df: pd.DataFrame, aois: list[dict]) -> pd.DataFrame:
 def load_trials(subject_id: str,
                 intermediate_dir: Path,
                 processed_dir: Path) -> dict[str, dict]:
-    """
-    Load per-trial fixations and raw eyetracker data for a subject.
 
-    Returns:
-        data[trial_id]["fixations"]   -> DataFrame (may be empty)
-        data[trial_id]["eyetracker"]  -> DataFrame (raw gaze)
-    """
     sub_proc = processed_dir / f"sub-{subject_id}"
     sub_int  = intermediate_dir / f"sub-{subject_id}"
 
@@ -71,6 +61,8 @@ def load_trials(subject_id: str,
     for trial_dir in sorted(sub_int.iterdir()):
         if not trial_dir.is_dir():
             continue
+
+        # Process all runs, not just _best
 
         eye_h5 = trial_dir / "eyetracker.h5"
         if not eye_h5.exists():
@@ -87,77 +79,13 @@ def load_trials(subject_id: str,
 
 
 # ---------------------------------------------------------------------------
-# Inter-trial fixations
-# ---------------------------------------------------------------------------
-
-def extract_intertrial_fixations(
-    trials_ordered: list[str],
-    data: dict[str, dict],
-    eye_cfg: dict,
-) -> pd.DataFrame:
-    """
-    Find eye samples that fall in the gap between consecutive trials and run
-    fixation detection on them.
-
-    Each trial's eyetracker data covers [t_start, t_end] of that trial.
-    The gap is (t_end_of_trial_N, t_start_of_trial_N+1) in raw timestamps.
-
-    Returns a DataFrame with columns:
-        trial_before, trial_after, start_ms, end_ms, duration_ms, x, y,
-        gap_start_s, gap_end_s, gap_duration_s
-    (x, y are in pixels)
-    """
-    time_col = eye_cfg["time_col"]
-
-    rows = []
-
-    for i in range(len(trials_ordered) - 1):
-        t_before = trials_ordered[i]
-        t_after  = trials_ordered[i + 1]
-
-        eye_before = data[t_before]["eyetracker"]
-        eye_after  = data[t_after]["eyetracker"]
-
-        if eye_before.empty or eye_after.empty:
-            continue
-
-        gap_start = eye_before[time_col].iloc[-1]   # end of trial N
-        gap_end   = eye_after[time_col].iloc[0]     # start of trial N+1
-        gap_dur   = gap_end - gap_start
-
-        if gap_dur <= 0:
-            continue
-
-        # eye samples strictly between the two trials (neither trial has them,
-        # so we approximate from the boundary timestamps stored in each trial)
-        # Build a synthetic eye DataFrame from the last sample of trial N and
-        # the first sample of trial N+1 as anchors, then report the gap.
-        # If the experiment recorded a continuous eye stream, the gap samples
-        # are not available in the split intermediate files; we still report
-        # the gap metadata and the boundary gaze positions.
-        gap_row = {
-            "trial_before":    t_before,
-            "trial_after":     t_after,
-            "gap_start_s":     float(gap_start),
-            "gap_end_s":       float(gap_end),
-            "gap_duration_s":  float(gap_dur),
-            "n_fixations":     0,
-            "note": "eye samples in gap not available in split intermediate files",
-        }
-        rows.append(gap_row)
-
-    return pd.DataFrame(rows)
-
-
-# ---------------------------------------------------------------------------
 # Per-subject processing
 # ---------------------------------------------------------------------------
 
 def process_subject(subject_id: str,
                     intermediate_dir: Path,
                     processed_dir: Path,
-                    aois: list[dict],
-                    eye_cfg: dict) -> list[dict]:
+                    aois: list[dict]) -> list[dict]:
     data = load_trials(subject_id, intermediate_dir, processed_dir)
     if not data:
         print(f"  [SKIP] {subject_id}: no trial data")
@@ -224,16 +152,6 @@ def process_subject(subject_id: str,
             **aoi_stats,
         })
 
-    # --- Inter-trial (between-games) fixations ---
-    trials_ordered = sorted(data.keys())
-    gap_df = extract_intertrial_fixations(trials_ordered, data, eye_cfg)
-    if not gap_df.empty:
-        out_sub = processed_dir / f"sub-{subject_id}"
-        out_sub.mkdir(parents=True, exist_ok=True)
-        gap_df.to_csv(out_sub / "intertrial_fixations.csv", index=False)
-        print(f"         inter-trial gaps saved -> "
-              f"data/processed/sub-{subject_id}/intertrial_fixations.csv")
-
     return summaries
 
 
@@ -259,7 +177,7 @@ if __name__ == "__main__":
     all_summaries = []
     for sid in subjects:
         all_summaries.extend(
-            process_subject(sid, intermediate, processed, aois, eye_cfg)
+            process_subject(sid, intermediate, processed, aois)
         )
 
     if all_summaries:

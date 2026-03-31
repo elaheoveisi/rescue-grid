@@ -1,0 +1,12 @@
+class animal:
+  def action(self):
+    print("I am an animal")
+
+
+class dog(animal):
+  def action(self):
+    print("I am a dog")
+
+
+    my_dog = dog()
+    my_dog.action()

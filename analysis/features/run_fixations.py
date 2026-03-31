@@ -82,8 +82,7 @@ def run_fixations(cfg: dict) -> None:
         print(f"[SUB]  {sid}")
 
         for trial_id, streams in data.items():
-            if not trial_id.endswith("_best"):
-                continue
+            # Process all runs, not just _best
 
             eye_df = streams["eyetracker"].copy()
 

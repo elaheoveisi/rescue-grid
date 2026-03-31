@@ -75,9 +75,6 @@ def run_saccades(cfg: dict) -> None:
         print(f"[SUB]  {sid}")
 
         for trial_id, streams in data.items():
-            if not trial_id.endswith("_best"):
-                continue
-
             eye_df = streams["eyetracker"].copy()
 
             if eye_df.empty:
