@@ -71,10 +71,12 @@ class ChatPanel:
             self._set_bg(_BG_HIGHLIGHT if blink_on else _BG_NORMAL)
 
     def _handle_llm_result(self, user, now: int):
+        user.env.show_all_victim_batteries()
         kind, value = user.llm_result
         if kind == "reply":
             self.set_message("Agent", value)
             self._highlight_until = now + _HIGHLIGHT_DURATION_MS
+
         else:
             self.set_message("Error", value, color="#DC143C")
         user.llm_thread = None

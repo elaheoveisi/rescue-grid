@@ -1,3 +1,5 @@
+import time
+
 from minigrid.core.constants import COLORS, IDX_TO_OBJECT, OBJECT_TO_IDX
 from minigrid.core.world_object import WorldObj
 from minigrid.utils.rendering import fill_coords, point_in_rect
@@ -85,7 +87,14 @@ class Victim(VictimBase):
             color: Color of the victim (default "red")
         """
         self.direction = direction
+        self._battery_show_until = 0.0
         super().__init__(f"victim_{direction}", color)
+
+    def show_battery(self, seconds: float = 5.0):
+        self._battery_show_until = time.time() + seconds
+
+    def hide_battery(self):
+        self._battery_show_until = 0.0
 
     def encode(self):
         type_idx, color_idx, _ = super().encode()
@@ -97,11 +106,12 @@ class Victim(VictimBase):
     def render(self, img):
         if int(self.health * 20) == 0:
             return img
-        fill_coords(
-            img,
-            point_in_rect(0.1, 0.95, 0.95 - self.health * 0.90, 0.95),
-            (255, 255, 255),
-        )
+        if time.time() < self._battery_show_until:
+            fill_coords(
+                img,
+                point_in_rect(0.05, 0.98, 0.98 - self.health * 0.93, 0.98),
+                (255, 255, 255),
+            )
         super().render(img)
         return img
 

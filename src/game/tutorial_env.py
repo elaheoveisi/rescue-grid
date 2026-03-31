@@ -6,7 +6,7 @@ from minigrid.envs.babyai.core.verifier import ObjDesc, OpenInstr, PickupInstr
 
 from .core.level import SARLevelGen
 from .sar.actions import RescueAction
-from .sar.utils import LavaPlacer
+from .sar.placers import LavaPlacer
 
 
 class TutorialEnv(SARLevelGen):

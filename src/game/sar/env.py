@@ -1,5 +1,3 @@
-import random
-
 from minigrid.core.world_object import Door
 
 from ..core.level import SARLevelGen
@@ -7,7 +5,7 @@ from .actions import RescueAction
 from .instructions import PickupAllVictimsInstr, calculate_max_steps
 from .objects import REAL_VICTIMS
 from .observations import GameObservation
-from .utils import LavaPlacer, VictimPlacer
+from .placers import LavaPlacer, LockedRoomPlacer, VictimPlacer, VictimTracker
 
 
 def build_sar_env(
@@ -71,62 +69,15 @@ class PickupVictimEnv(SARLevelGen):
             **kwargs,
         )
         self.victim_placer = victim_placer
-        self.locked_room_prob = locked_room_prob
-
-        # Lava configuration
-        self.add_lava = add_lava
-        if add_lava:
-            self.lava_placer = LavaPlacer(
-                lava_per_room=lava_per_room, lava_probability=lava_probability
-            )
+        self.victim_tracker = VictimTracker()
+        self.locked_room_placer = LockedRoomPlacer(locked_room_prob)
+        self.lava_placer = LavaPlacer(
+            lava_per_room=lava_per_room, lava_probability=lava_probability, enabled=add_lava
+        )
 
         # Custom actions
         self.rescue_action = RescueAction(self, fallback=self._step)
         self.observation = GameObservation()
-
-    def add_locked_rooms(self, n_locked):
-        added = 0
-
-        while added < n_locked:
-            # Pick a random room
-            i, j = self._rand_int(0, self.num_cols), self._rand_int(0, self.num_rows)
-            locked_room = self.get_room(i, j)
-
-            # Skip if room is already locked
-            if locked_room.locked:
-                continue
-
-            # Find all door indices that are still empty
-            empty_doors = [idx for idx, d in enumerate(locked_room.doors) if d is None]
-            if not empty_doors:
-                continue  # no free door, pick another room
-
-            # Pick a random empty door
-            door_idx = random.choice(empty_doors)
-
-            # Skip if door leads outside
-            if locked_room.neighbors[door_idx] is None:
-                continue
-
-            # Add locked door
-            door, _ = self.add_door(i, j, door_idx, locked=True)
-            locked_room.locked = True
-
-            # Place key in a different room
-            while True:
-                ki, kj = (
-                    self._rand_int(0, self.num_cols),
-                    self._rand_int(0, self.num_rows),
-                )
-                key_room = self.get_room(ki, kj)
-                if key_room is locked_room:
-                    continue
-                if getattr(key_room, "locked", False):
-                    continue  # avoid placing key in another locked room
-                self.add_object(ki, kj, "key", door.color)
-                break
-
-            added += 1
 
     def _count_objects_by_type(self, obj_types):
         return len(self._find_objects_by_type(obj_types))
@@ -214,12 +165,7 @@ class PickupVictimEnv(SARLevelGen):
         obs, info = super().reset(**kwargs)
         self.instrs.reset_verifier(self)
         self.total_victims = self._count_objects_by_type(REAL_VICTIMS)
-        self._victim_positions = [
-            (x, y, self.grid.get(x, y))
-            for y in range(self.height)
-            for x in range(self.width)
-            if isinstance(self.grid.get(x, y), REAL_VICTIMS)
-        ]
+        self.victim_tracker.initialize(self.grid, self.width, self.height)
         self.camera.reset()
         obs = self.observation.process_observation(obs, self)
         return obs, info
@@ -227,15 +173,12 @@ class PickupVictimEnv(SARLevelGen):
     def gen_mission(self):
         """Generate the mission layout and instructions."""
 
-        # Add locked rooms (20% of rooms - balanced between challenge and generation speed)
-        n_locked = max(1, int(self.num_cols * self.num_rows * self.locked_room_prob))
-        self.add_locked_rooms(n_locked)
+        self.locked_room_placer.place_all(self, self.num_rows, self.num_cols)
 
         self.connect_all()
 
         # Add lava obstacles (before victims to avoid blocking them)
-        if self.add_lava:
-            self.lava_placer.place_all(self, self.num_rows, self.num_cols)
+        self.lava_placer.place_all(self, self.num_rows, self.num_cols)
 
         # Place agent outside locked room
         while True:
@@ -259,29 +202,29 @@ class PickupVictimEnv(SARLevelGen):
     def _step(self, action):
         return super().step(action)
 
-    def step(self, action):
+    def _execute_action(self, action):
         if action == self.actions.pickup:
             obs, reward, terminated, truncated, info = self.rescue_action.execute()
-            self._victim_positions = [
-                (x, y, obj) for x, y, obj in self._victim_positions
-                if self.grid.get(x, y) is obj
-            ]
-
-            # Verify if mission is complete after pickup action
+            self.victim_tracker.sync_after_pickup(self.grid)
             if hasattr(self, "instrs") and self.instrs is not None:
-                status = self.instrs.verify(self)
-                if status == "success":
+                if self.instrs.verify(self) == "success":
                     terminated = True
-                    reward += 1.0  # Bonus reward for completing mission
+                    reward += 1.0
                     info["mission_complete"] = True
-
         else:
             obs, reward, terminated, truncated, info = self._step(action)
+        return obs, reward, terminated, truncated, info
 
-        x0, y0, x1, y1 = self.camera.get_visible_bounds(self.width, self.height)
-        for x, y, obj in self._victim_positions:
-            if x0 <= x < x1 and y0 <= y < y1:
-                obj.deplete(self._deplete_amount)
+    def show_all_victim_batteries(self, seconds: float = 10.0):
+        self.victim_tracker.show_visible_batteries(self.camera, self.width, self.height, seconds)
 
+    def _decay_visible_victim_health(self):
+        self.victim_tracker.decay(
+            self.camera, self.grid, self.width, self.height, self._deplete_amount
+        )
+
+    def step(self, action):
+        obs, reward, terminated, truncated, info = self._execute_action(action)
+        self._decay_visible_victim_health()
         obs = self.observation.process_observation(obs, self)
         return obs, reward, terminated, truncated, info
