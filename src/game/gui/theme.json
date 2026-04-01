@@ -69,7 +69,8 @@
             "normal_text": "#DCDCDC"
         },
         "font": {
-            "name": "Arial"
+            "name": "Arial",
+            "size": 34
         },
         "misc": {
             "line_spacing": "1.25",

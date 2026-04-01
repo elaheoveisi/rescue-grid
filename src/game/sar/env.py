@@ -218,6 +218,9 @@ class PickupVictimEnv(SARLevelGen):
     def show_all_victim_batteries(self, seconds: float = 10.0):
         self.victim_tracker.show_visible_batteries(self.camera, self.width, self.height, seconds)
 
+    def hide_all_victim_batteries(self):
+        self.victim_tracker.hide_all_batteries()
+
     def _decay_visible_victim_health(self):
         self.victim_tracker.decay(
             self.camera, self.grid, self.width, self.height, self._deplete_amount

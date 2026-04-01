@@ -98,7 +98,9 @@ class Victim(VictimBase):
 
     def encode(self):
         type_idx, color_idx, _ = super().encode()
-        return (type_idx, color_idx, int(self.health * 20))
+        health_int = int(self.health * 20)
+        battery_on = int(time.time() < self._battery_show_until)
+        return (type_idx, color_idx, health_int + 21 * battery_on)
 
     def _get_render_coords(self):
         return self._COORDS[self.direction]

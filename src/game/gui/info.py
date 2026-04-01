@@ -3,6 +3,8 @@ from pathlib import Path
 import pygame
 from pygame_gui.elements import UIImage, UIPanel, UITextBox
 
+from .utils import scale
+
 _COLOR_POSITIVE = "#32CD32"
 _COLOR_NEGATIVE = "#DC143C"
 _COLOR_NEUTRAL = "#DCDCDC"
@@ -25,19 +27,15 @@ def _reward_color(value: float) -> str:
     return _COLOR_NEUTRAL
 
 
-def _scale(panel_width: int, divisor: int, minimum: int) -> int:
-    return max(minimum, panel_width // divisor)
-
-
 class InfoPanel:
     """Info panel — UIPanel + mission box + 3 metric columns + compass + controls."""
 
     def __init__(self, manager, x_offset, panel_width, panel_height=None):
         panel_height = panel_height if panel_height is not None else panel_width
 
-        s = _scale(panel_width, 10, 26)
+        s = scale(panel_width, 10, 26)
         self._metric_size = s
-        self._title_size = _scale(s, 3, 14)
+        self._title_size = scale(s, 3, 14)
         self._label_size = max(10, s // 3)
         self._body_size = max(10, s // 2)
 

@@ -27,23 +27,9 @@ class User(ManualControl):
         self.episode_ended = False
         self.on_reset = None
         self.steps_since_last_llm = 0
+        self._start_time: float | None = None
         self.llm_thread: threading.Thread | None = None
         self.llm_result: tuple | None = None
-        self._start_time: float | None = None
-
-    def ask_llm_async(self):
-        """Start a background thread to ask the LLM. No-op if one is already running."""
-        if self.llm_thread is not None and self.llm_thread.is_alive():
-            return
-        self.llm_result = None
-        self.llm_thread = threading.Thread(target=self._run_llm, daemon=True)
-        self.llm_thread.start()
-
-    def _run_llm(self):
-        try:
-            self.llm_result = ("reply", self.ask_llm())
-        except Exception as e:
-            self.llm_result = ("error", str(e))
 
     @property
     def remaining_time(self) -> float:
@@ -123,3 +109,28 @@ class User(ManualControl):
         )
         self.steps_since_last_llm = 0
         return self.last_llm_response
+
+    def ask_llm_async(self):
+        """Start LLM call in a background thread. Result stored in llm_result."""
+        if self.obs is None:
+            self.llm_result = ("reply", "No observation available yet.")
+            return
+
+        obs_snapshot = self.obs
+        self.llm_result = None
+
+        def _run():
+            try:
+                result = ask(
+                    obs_snapshot,
+                    model=self.model,
+                    provider=self.provider,
+                    prompt_type=self.prompt_type,
+                )
+                self.llm_result = ("reply", result)
+            except Exception as e:
+                self.llm_result = ("error", str(e))
+            self.steps_since_last_llm = 0
+
+        self.llm_thread = threading.Thread(target=_run, daemon=True)
+        self.llm_thread.start()

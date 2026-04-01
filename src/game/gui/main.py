@@ -64,6 +64,7 @@ class SAREnvGUI:
             self.panel_width,
             chat_height,
         )
+        self.chat_panel.on_blink_end = self.user.env.hide_all_victim_batteries
 
     def _calculate_offsets(self):
         """Calculate scale and offsets to center game content on screen."""
@@ -100,6 +101,9 @@ class SAREnvGUI:
             )
         return surface
 
+    def _call_llm(self):
+        self.user.ask_llm_async()
+
     def reset(self):
         self.user.reset()
         self.chat_panel.reset()
@@ -107,12 +111,14 @@ class SAREnvGUI:
     def handle_user_input(self, event):
         if event.type != pygame.KEYDOWN:
             return
+        if self.user.llm_thread and self.user.llm_thread.is_alive():
+            return
         if event.key == pygame.K_ESCAPE:
             self.close()
         elif event.key == pygame.K_F11:
             self.toggle_fullscreen()
         elif event.key in (pygame.K_LALT, pygame.K_RALT):
-            self.user.ask_llm_async()
+            self._call_llm()
         else:
             event.key = pygame.key.name(int(event.key))
             self.user.handle_key(event)
@@ -120,7 +126,7 @@ class SAREnvGUI:
                 self.user.steps_since_last_llm > 0
                 and self.user.steps_since_last_llm % self.llm_nudge_interval == 0
             ):
-                self.user.ask_llm_async()
+                self._call_llm()
 
     def toggle_fullscreen(self):
         """Toggle between fullscreen and windowed mode."""

@@ -1,5 +1,7 @@
 import pygame
-from pygame_gui.elements import UILabel, UIPanel, UITextBox
+from pygame_gui.elements import UIPanel, UITextBox
+
+from .utils import scale
 
 _BG_NORMAL = pygame.Color("#1E1E28")
 _BG_HIGHLIGHT = pygame.Color("#E7E7EE")  # white tint — new transmission
@@ -15,10 +17,14 @@ class ChatPanel:
         self.panel_width = panel_width
         self.panel_height = panel_height
         self._highlight_until: int = 0
+        self.on_blink_end = None
 
-        scale = panel_width / 400
-        title_h = max(1, round(40 * scale))
-        gap = max(1, round(10 * scale))
+        s = scale(panel_width, 10, 26)
+        self._title_size = scale(s, 3, 14)
+        self._body_size = max(10, s // 2)
+
+        title_h = max(1, scale(panel_width, 10, 40))
+        gap = max(1, scale(panel_width, 40, 10))
 
         self.panel = UIPanel(
             relative_rect=pygame.Rect(
@@ -26,9 +32,10 @@ class ChatPanel:
             ),
             manager=manager,
         )
-        self.title = UILabel(
+        self.title = UITextBox(
+            html_text=f"<font pixel_size='{self._title_size}'><b>CHAT</b></font>",
             relative_rect=pygame.Rect(0, gap, panel_width, title_h),
-            text="CHAT",
+            wrap_to_height=True,
             manager=manager,
             container=self.panel,
             object_id="#title",
@@ -50,7 +57,9 @@ class ChatPanel:
         self.text_box.rebuild()
 
     def set_message(self, sender, text, color="#6495ED"):
-        self.text_box.set_text(f"<font color='{color}'><b>{sender}:</b> {text}</font>")
+        self.text_box.set_text(
+            f"<font pixel_size='{self._body_size}' color='{color}'><b>{sender}:</b> {text}</font>"
+        )
 
     def reset(self):
         self._highlight_until = 0
@@ -66,17 +75,19 @@ class ChatPanel:
         if now >= self._highlight_until:
             self._highlight_until = 0
             self._set_bg(_BG_NORMAL)
+            if self.on_blink_end:
+                self.on_blink_end()
         else:
             blink_on = (now // _BLINK_INTERVAL_MS) % 2 == 0
             self._set_bg(_BG_HIGHLIGHT if blink_on else _BG_NORMAL)
 
     def _handle_llm_result(self, user, now: int):
-        user.env.show_all_victim_batteries()
+        if user.provider != "dummy":
+            user.env.show_all_victim_batteries()
         kind, value = user.llm_result
         if kind == "reply":
             self.set_message("Agent", value)
             self._highlight_until = now + _HIGHLIGHT_DURATION_MS
-
         else:
             self.set_message("Error", value, color="#DC143C")
         user.llm_thread = None

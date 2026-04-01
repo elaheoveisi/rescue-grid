@@ -169,6 +169,10 @@ class VictimTracker:
             if x0 <= x < x1 and y0 <= y < y1:
                 obj.show_battery(seconds)
 
+    def hide_all_batteries(self):
+        for _, _, obj in self._positions:
+            obj.hide_battery()
+
     def decay(self, camera, grid, grid_width, grid_height, deplete_amount):
         x0, y0, x1, y1 = camera.get_visible_bounds(grid_width, grid_height)
         for x, y, obj in self._positions:
