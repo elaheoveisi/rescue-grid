@@ -127,6 +127,15 @@ class GameObservation:
             }
         )
 
+        # Victim health map: "x,y" -> health float (0.0-1.0)
+        victim_health = {}
+        for vy in range(env.height):
+            for vx in range(env.width):
+                obj = env.grid.get(vx, vy)
+                if obj is not None and type(obj).__name__ == "Victim":
+                    victim_health[f"{vx},{vy}"] = round(obj.health, 2)
+        obs["victim_health"] = victim_health
+
         # Camera bounds: update EdgeFollowCamera state and store view region in obs
         cam = getattr(env, "camera", None)
         if cam is not None and hasattr(cam, "_update_position"):

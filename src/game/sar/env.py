@@ -10,12 +10,12 @@ from .placers import LavaPlacer, LockedRoomPlacer, VictimPlacer, VictimTracker
 
 def build_sar_env(
     screen_size: int,
-    num_rows: int = 3,
-    num_cols: int = 3,
-    num_fake_victims: int = 5,
-    num_real_victims: int = 2,
+    num_rows: int = 5,
+    num_cols: int = 5,
+    num_fake_victims: int = 10,
+    num_real_victims: int = 4,
     important_victim: str = "down",
-    lava_per_room: int = 2,
+    lava_per_room: int = 14,
     locked_room_prob: float = 0.35,
     tile_size: int = 64,
     **kwargs,
@@ -44,13 +44,13 @@ def build_sar_env(
 class PickupVictimEnv(SARLevelGen):
     def __init__(
         self,
-        room_size=8,
-        num_rows=3,
-        num_cols=3,
+        room_size=14,
+        num_rows=5,
+        num_cols=5,
         num_dists=18,
         unblocking=False,
         add_lava=True,
-        lava_per_room=0,
+        lava_per_room=14,
         lava_probability=0.5,
         locked_room_prob=0.5,
         victim_placer=None,
@@ -161,7 +161,7 @@ class PickupVictimEnv(SARLevelGen):
             num_doors=self._count_objects_by_type(Door),
         )
         self.max_steps = self.fixed_max_steps
-        self._deplete_amount = 1.0 / self.fixed_max_steps
+        self._deplete_amount = 20/ self.fixed_max_steps
         obs, info = super().reset(**kwargs)
         self.instrs.reset_verifier(self)
         self.total_victims = self._count_objects_by_type(REAL_VICTIMS)

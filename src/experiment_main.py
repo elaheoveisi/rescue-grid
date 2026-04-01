@@ -82,7 +82,7 @@ with skip_run("skip", "sar_experiment") as check, check():
         task_config={"config": config["surveys"]},
         order=5,
         instructions=instructions["sart"],
-    )
+    )   
     experiment.add_task(
         name="nasa_tlx",
         task_cls=NasaTLX,

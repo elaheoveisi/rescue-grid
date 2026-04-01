@@ -64,8 +64,8 @@ class SARGameTrial(LSLTrial):
         screen_height = pygame.display.Info().current_h
         env = build_sar_env(
             screen_size=screen_height,
-            num_fake_victims=2,
-            num_real_victims=5,
+            num_fake_victims=12,
+            num_real_victims=6,
             num_rows=config.get("num_rows"),
             num_cols=config.get("num_cols"),
             camera_strategy=AgentFOVCamera(),
