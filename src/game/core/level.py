@@ -20,7 +20,6 @@ class SARLevelGen(LevelGen):
         implicit_unlock=True,
         action_kinds=["goto", "pickup", "open", "putnext"],
         instr_kinds=["action", "and", "seq"],
-        window=None,
         camera_strategy=None,
         **kwargs,
     ):
@@ -46,10 +45,10 @@ class SARLevelGen(LevelGen):
     def gen_mission(self):
         raise NotImplementedError("Subclasses must implement gen_mission()")
 
-    def get_camera_view(self, **kwargs) -> np.ndarray:
+    def get_camera_view(self) -> np.ndarray:
         """Get current camera view using the configured strategy."""
         room = self.room_from_pos(*self.agent_pos)
-        img = self.camera.get_crop(
+        return self.camera.get_crop(
             grid=self.grid,
             agent_pos=self.agent_pos,
             agent_dir=self.agent_dir,
@@ -58,10 +57,7 @@ class SARLevelGen(LevelGen):
             grid_height=self.height,
             step_count=getattr(self, "step_count", None),
             env=self,
-            **kwargs,
         )
-
-        return img
 
     def render(self):
         """Render the environment."""

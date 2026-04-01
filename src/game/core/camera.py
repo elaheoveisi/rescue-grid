@@ -16,6 +16,9 @@ class CameraConfig:
 class CameraStrategy(ABC):
     """Abstract base class for different camera behaviors."""
 
+    def _render_full(self, grid, tile_size, agent_pos, agent_dir) -> np.ndarray:
+        return grid.render(tile_size, agent_pos, agent_dir, highlight_mask=None)
+
     @abstractmethod
     def get_crop(self, grid, agent_pos, agent_dir, **kwargs) -> np.ndarray:
         """Return a cropped view of the grid."""
@@ -31,10 +34,7 @@ class FullviewCamera(CameraStrategy):
         self.tile_size = tile_size
 
     def get_crop(self, grid, agent_pos, agent_dir, **kwargs):
-        full_img = grid.render(
-            self.tile_size, agent_pos, agent_dir, highlight_mask=None
-        )
-        return full_img
+        return self._render_full(grid, self.tile_size, agent_pos, agent_dir)
 
 
 class AgentCenteredCamera(CameraStrategy):
@@ -64,9 +64,7 @@ class AgentCenteredCamera(CameraStrategy):
         px_min, px_max = top_x * self.tile_size, bot_x * self.tile_size
         py_min, py_max = top_y * self.tile_size, bot_y * self.tile_size
 
-        full_img = grid.render(
-            self.tile_size, agent_pos, agent_dir, highlight_mask=None
-        )
+        full_img = self._render_full(grid, self.tile_size, agent_pos, agent_dir)
         return full_img[py_min:py_max, px_min:px_max, :]
 
 
@@ -126,7 +124,7 @@ class EdgeFollowCamera(CameraStrategy):
         tile_size = self.config.tile_size
 
         # Render full grid
-        full_img = grid.render(tile_size, agent_pos, agent_dir, highlight_mask=None)
+        full_img = self._render_full(grid, tile_size, agent_pos, agent_dir)
 
         # Calculate pixel boundaries
         px_min = self.top_x * tile_size
@@ -155,11 +153,12 @@ class AgentFOVCamera(CameraStrategy):
 
     def __init__(self, config: CameraConfig = None):
         self.config = config or CameraConfig()
+        self._last_room = None
 
     def get_crop(self, grid, agent_pos, agent_dir, room=None, **_) -> np.ndarray:
         self._last_room = room
         ts = self.config.tile_size
-        full_img = grid.render(ts, agent_pos, agent_dir, highlight_mask=None)
+        full_img = self._render_full(grid, ts, agent_pos, agent_dir)
 
         if room is None:
             return full_img
