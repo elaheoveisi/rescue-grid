@@ -62,7 +62,7 @@ def extract_game_features(game_df):
 	features['n_actions'] = game_df['action'].notna().sum()
 	features['n_llm_calls'] = game_df['llm_response'].notna().sum() if 'llm_response' in game_df.columns else 0
 	features['victims_per_step'] = (game_df['saved_victims'].max() / game_df['step_count'].max()) if game_df['step_count'].max() else 0
-	features['n_victims_saved'] = game_df['saved_victims'].max()
+	features['saved_victims'] = game_df['saved_victims'].max()
 	return features
 
 def extract_saccade_features(participant, trial_id):

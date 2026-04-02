@@ -46,10 +46,29 @@ def fixation_features_up_to(fix_aoi_df, cutoff_ms):
 def saccade_features_up_to(sac_df, cutoff_ms):
     df = sac_df[sac_df['start_ms'] <= cutoff_ms]
     features = {}
-    features['n_saccades']          = len(df)
-    features['mean_saccade_amp_px'] = float(df['amplitude'].mean()) if len(df) else 0.0
+    features['n_saccades']           = len(df)
+    features['mean_saccade_amp_px']  = float(df['amplitude'].mean()) if len(df) else 0.0
     features['total_saccade_dur_ms'] = df['duration_ms'].sum()
     return features
+
+
+def transition_features_up_to(fix_aoi_df, cutoff_ms):
+    df   = fix_aoi_df[fix_aoi_df['start_ms'] <= cutoff_ms].reset_index(drop=True)
+    aois = ['game_area', 'info_panel', 'chat_panel']
+    features = {f'transitions_{src}_{dst}': 0 for src in aois for dst in aois}
+    for i in range(len(df) - 1):
+        src, dst = df.loc[i, 'aoi'], df.loc[i + 1, 'aoi']
+        key = f'transitions_{src}_{dst}'
+        if key in features:
+            features[key] += 1
+    return features
+
+
+def pupil_features_up_to(eye_df, eye_t0, cutoff_ms):
+    cutoff_ts = eye_t0 + cutoff_ms / 1000.0
+    df = eye_df[eye_df['timestamp'] <= cutoff_ts]
+    pupil = df['avg_pupil_diam'].replace(0, np.nan).dropna()
+    return {'std_pupil_diam': float(pupil.std()) if len(pupil) > 1 else 0.0}
 
 
 def game_features_up_to(game_df, pct):
@@ -82,8 +101,8 @@ def extract_quarter_features(participant, category, pct):
         print(f"Skipping {participant} {category} q{pct}: {e}")
         return None
 
-    eye_t0     = eye_df['timestamp'].iloc[0]
-    cutoff_ms  = get_step_cutoff_ms(game_df, eye_t0, pct)
+    eye_t0    = eye_df['timestamp'].iloc[0]
+    cutoff_ms = get_step_cutoff_ms(game_df, eye_t0, pct)
 
     features = {
         'participant': participant,
@@ -93,6 +112,8 @@ def extract_quarter_features(participant, category, pct):
     features.update(game_features_up_to(game_df, pct))
     features.update(fixation_features_up_to(fix_aoi_df, cutoff_ms))
     features.update(saccade_features_up_to(sac_df, cutoff_ms))
+    features.update(transition_features_up_to(fix_aoi_df, cutoff_ms))
+    features.update(pupil_features_up_to(eye_df, eye_t0, cutoff_ms))
     return features
 
 

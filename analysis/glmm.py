@@ -1,4 +1,3 @@
-import sys
 import warnings
 from pathlib import Path
 
@@ -14,64 +13,32 @@ from statsmodels.tools.sm_exceptions import ConvergenceWarning
 ROOT = Path(__file__).resolve().parent.parent
 CONFIG = ROOT / "configs" / "config_analysis.yml"
 
-sys.path.insert(0, str(ROOT))
-from analysis.features.extract_features import process_subject  # noqa: E402
-
 
 def load_features(cfg):
-    subjects         = [str(s) for s in cfg.get("sub", [])]
-    intermediate_dir = ROOT / cfg["paths"]["intermediate"]
-    processed_dir    = ROOT / cfg["paths"]["processed"]
-    missing_val      = cfg.get("eyetracker", {}).get("missing", 0.0)
-    expertise_map    = {str(k): str(v) for k, v in cfg.get("expertise", {}).items()}
+    processed_dir = ROOT / cfg["paths"]["processed"]
+    checkpoints   = cfg["checkpoints"]
+    expertise_map = {str(k): str(v) for k, v in cfg.get("expertise", {}).items()}
 
-    checkpoints = cfg["checkpoints"]
-    fix_cfg     = cfg["fixation"]
-    fix_maxdist = fix_cfg["maxdist"]
-    fix_mindur  = fix_cfg["mindur"]
-    sac_cfg     = cfg["saccade"]
-    sac_minlen  = sac_cfg["minlen"]
-    sac_maxvel  = sac_cfg["maxvel"]
-    sac_maxdur  = sac_cfg["maxdur"]
-    aois        = cfg["aoi"]
+    quarters = []
+    for pct in checkpoints:
+        path = processed_dir / f"features_q{pct}.csv"
+        if not path.exists():
+            raise FileNotFoundError(f"Missing {path} — run extract_quarter_features.py first")
+        q_df = pd.read_csv(path)
+        feature_cols = [c for c in q_df.columns if c not in ("participant", "category", "quarter_pct")]
+        q_df = q_df.rename(columns={c: f"q{pct}_{c}" for c in feature_cols})
+        quarters.append(q_df)
 
-    all_rows = []
-    for sid in subjects:
-        all_rows.extend(
-            process_subject(sid, intermediate_dir, processed_dir, missing_val,
-                            expertise=expertise_map.get(sid, "unknown"),
-                            checkpoints=checkpoints,
-                            fix_maxdist=fix_maxdist,
-                            fix_mindur=fix_mindur,
-                            sac_minlen=sac_minlen,
-                            sac_maxvel=sac_maxvel,
-                            sac_maxdur=sac_maxdur,
-                            aois=aois)
-        )
+    # merge all quarters on participant + category
+    df = quarters[0]
+    for q_df in quarters[1:]:
+        df = df.merge(q_df[["participant", "category"] + [c for c in q_df.columns if c not in ("participant", "category", "quarter_pct")]],
+                      on=["participant", "category"], how="outer")
 
-    if not all_rows:
-        return pd.DataFrame()
-
-    df = pd.DataFrame(all_rows)
-
-    # keep only best run per (subject, base_trial)
-    df["final_saved_victims"] = pd.to_numeric(
-        df.get("final_saved_victims"), errors="coerce"
-    ).fillna(0)
-    df = (
-        df.sort_values(
-            ["subject", "base_trial", "final_saved_victims", "run"],
-            ascending=[True, True, False, False],
-        )
-        .drop_duplicates(subset=["subject", "base_trial"], keep="first")
-        .reset_index(drop=True)
-    )
-    df["trial"] = df["base_trial"]
-
-    # derive condition: trial_dummy = no_llm baseline, all other trials = llm
-    df["condition"] = df["base_trial"].apply(
-        lambda t: "no_llm" if t == "trial_dummy" else "llm"
-    )
+    df = df.rename(columns={"participant": "subject", "category": "trial"})
+    df["base_trial"] = df["trial"]
+    df["condition"]  = df["trial"].apply(lambda t: "no_llm" if t == "dummy" else "llm")
+    df["expertise"]  = df["subject"].apply(lambda s: expertise_map.get(s.replace("sub-", ""), "unknown"))
 
     return df
 

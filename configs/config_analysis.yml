@@ -31,6 +31,21 @@ paths:
   intermediate: data/intermediate   # output of xdf.py  (per-trial h5/csv)
   processed:    data/processed       # output of fixations/saccades
 
+glmm2:
+  datasets:
+    - name: features_q
+      source: quarters               # merges features_q25/50/75/100.csv
+      dataframes: [features_q25.csv, features_q50.csv, features_q75.csv, features_q100.csv]
+    - name: all_features
+      source: all_features.csv      # one row per trial, all trials
+    - name: best_features
+      source: best_features.csv     # one row per trial, best trials only
+      dataframes: [best_features.csv]
+  continuous: [victims_per_step, mean_fixation_dur_ms, mean_saccade_amp_px,
+               game_area_pct_dur, chat_panel_pct_dur, info_panel_pct_dur]
+  count:      [n_fixations, n_saccades, n_actions, n_llm_calls, saved_victims]
+  quarters:   [25, 50, 75, 100]
+
 eyetracker:
   x_col:       avg_gaze_point_x   # normalized 0-1 (no PsychoPy window set during recording)
   y_col:       avg_gaze_point_y   # normalized 0-1 (no PsychoPy window set during recording)
@@ -83,160 +98,3 @@ aoi:
 
  
 
-# Outcomes for per-quarter GLMM (LLM vs no_LLM, × expertise)
-# These are the BASE names — glmm.py prepends q25/q50/q75/q100 automatically.
-quarter_continuous_outcomes:
-  - victims_per_step
-  - chat_panel_pct_dur
-  - game_area_pct_dur
-  - mean_fixation_dur_ms
-  - mean_saccade_amp_px
-  - std_pupil_diam
-
-quarter_count_outcomes:
-  - transitions_game_area_info_panel
-  - transitions_game_area_chat_panel
-  - transitions_info_panel_game_area
-  - transitions_info_panel_chat_panel
-  - transitions_chat_panel_game_area
-  - transitions_chat_panel_info_panel
-
-# Legacy full-feature outcomes (kept for extract_features.py standalone run)
-continuous_outcomes:
-  - steps_used_pct
-  - total_reward
-  - mean_reward
-  - trial_duration_s
-  - mean_fixation_dur_ms
-  - total_fixation_dur_ms
-  - mean_saccade_amp_px
-  - total_saccade_dur_ms
-  - mean_pupil_diam
-  - mean_eye_distance
-  - pct_missing_eye
-  - game_area_pct_dur
-  - info_panel_pct_dur
-  - chat_panel_pct_dur
-
-  - game_area_mean_dur_ms
-  - info_panel_mean_dur_ms
-  - chat_panel_mean_dur_ms
-
-  # quarter-level (25 / 50 / 75 / 100 % of steps)
-  - q25_game_area_pct_dur
-  - q50_game_area_pct_dur
-  - q75_game_area_pct_dur
-  - q100_game_area_pct_dur
-  - q25_info_panel_pct_dur
-  - q50_info_panel_pct_dur
-  - q75_info_panel_pct_dur
-  - q100_info_panel_pct_dur
-  - q25_chat_panel_pct_dur
-  - q50_chat_panel_pct_dur
-  - q75_chat_panel_pct_dur
-  - q100_chat_panel_pct_dur
-  - q25_mean_fixation_dur_ms
-  - q50_mean_fixation_dur_ms
-  - q75_mean_fixation_dur_ms
-  - q100_mean_fixation_dur_ms
-  - q25_total_fixation_dur_ms
-  - q50_total_fixation_dur_ms
-  - q75_total_fixation_dur_ms
-  - q100_total_fixation_dur_ms
-  - q25_mean_saccade_amp_px
-  - q50_mean_saccade_amp_px
-  - q75_mean_saccade_amp_px
-  - q100_mean_saccade_amp_px
-  - q25_total_saccade_dur_ms
-  - q50_total_saccade_dur_ms
-  - q75_total_saccade_dur_ms
-  - q100_total_saccade_dur_ms
-  - q25_mean_pupil_diam
-  - q50_mean_pupil_diam
-  - q75_mean_pupil_diam
-  - q100_mean_pupil_diam
-  - q25_std_pupil_diam
-  - q50_std_pupil_diam
-  - q75_std_pupil_diam
-  - q100_std_pupil_diam
-  - q25_mean_eye_distance
-  - q50_mean_eye_distance
-  - q75_mean_eye_distance
-  - q100_mean_eye_distance
-  - q25_pct_missing_eye
-  - q50_pct_missing_eye
-  - q75_pct_missing_eye
-  - q100_pct_missing_eye
-  - q25_mean_reward
-  - q50_mean_reward
-  - q75_mean_reward
-  - q100_mean_reward
-  - q25_victims_per_step
-  - q50_victims_per_step
-  - q75_victims_per_step
-  - q100_victims_per_step
-
-# Step checkpoints: victims saved at each of these % of each trial's total steps
-checkpoints:
-  - 25
-  - 50
-  - 75
-  - 100
-
-count_outcomes:
-  - victims_at_pct_25
-  - victims_at_pct_50
-  - victims_at_pct_75
-  - victims_at_pct_100
-  - final_saved_victims
-  - final_remaining_victims
-  - final_step_count
-  - total_steps
-  - n_actions
-  - n_llm_calls
-  - n_fixations
-  - n_saccades
-  - n_fixations_game_area
-  - n_fixations_info_panel
-  - n_fixations_chat_panel
-  # quarter-level counts
-  - q25_n_fixations
-  - q50_n_fixations
-  - q75_n_fixations
-  - q100_n_fixations
-  - q25_n_fixations_game_area
-  - q50_n_fixations_game_area
-  - q75_n_fixations_game_area
-  - q100_n_fixations_game_area
-  - q25_n_fixations_info_panel
-  - q50_n_fixations_info_panel
-  - q75_n_fixations_info_panel
-  - q100_n_fixations_info_panel
-  - q25_n_fixations_chat_panel
-  - q50_n_fixations_chat_panel
-  - q75_n_fixations_chat_panel
-  - q100_n_fixations_chat_panel
-  - q25_n_saccades
-  - q50_n_saccades
-  - q75_n_saccades
-  - q100_n_saccades
-  - q25_n_saccades_game_area
-  - q50_n_saccades_game_area
-  - q75_n_saccades_game_area
-  - q100_n_saccades_game_area
-  - q25_n_saccades_info_panel
-  - q50_n_saccades_info_panel
-  - q75_n_saccades_info_panel
-  - q100_n_saccades_info_panel
-  - q25_n_saccades_chat_panel
-  - q50_n_saccades_chat_panel
-  - q75_n_saccades_chat_panel
-  - q100_n_saccades_chat_panel
-  - q25_n_actions
-  - q50_n_actions
-  - q75_n_actions
-  - q100_n_actions
-  - q25_n_llm_calls
-  - q50_n_llm_calls
-  - q75_n_llm_calls
-  - q100_n_llm_calls
