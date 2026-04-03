@@ -26,7 +26,7 @@ class RescueAction(BaseAction):
                 reward = -20
             else:
                 self.env.saved_victims += 1
-                reward = 1.0
+                reward = 10
         elif isinstance(obj, FAKE_VICTIMS):
             self.env.grid.set(*fwd_pos, None)
             reward = -10

@@ -15,7 +15,7 @@ def build_sar_env(
     num_fake_victims: int = 10,
     num_real_victims: int = 4,
     important_victim: str = "down",
-    lava_per_room: int = 14,
+    lava_per_room: int = 10,
     locked_room_prob: float = 0.35,
     tile_size: int = 64,
     **kwargs,
@@ -45,12 +45,12 @@ class PickupVictimEnv(SARLevelGen):
     def __init__(
         self,
         room_size=14,
-        num_rows=5,
-        num_cols=5,
+        num_rows=3,
+        num_cols=3,
         num_dists=18,
         unblocking=False,
         add_lava=True,
-        lava_per_room=14,
+        lava_per_room=10,
         lava_probability=0.5,
         locked_room_prob=0.5,
         victim_placer=None,
@@ -161,7 +161,7 @@ class PickupVictimEnv(SARLevelGen):
             num_doors=self._count_objects_by_type(Door),
         )
         self.max_steps = self.fixed_max_steps
-        self._deplete_amount = 20/ self.fixed_max_steps
+        self._deplete_amount = 17.5 / self.fixed_max_steps
         obs, info = super().reset(**kwargs)
         self.instrs.reset_verifier(self)
         self.total_victims = self._count_objects_by_type(REAL_VICTIMS)

@@ -63,7 +63,7 @@ def calculate_max_steps(
     # 6. Safety buffer for human mistakes
     max_steps = int(raw_steps * safety_buffer)
 
-    return max_steps
+    return max_steps*0 +1000
 
 
 class PickupAllVictimsInstr(Instr):

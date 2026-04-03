@@ -103,20 +103,13 @@ class VictimPlacer:
             return min(abs(pos[0] - tx) + abs(pos[1] - ty) for tx, ty in targets)
 
         d_lava = min_dist(lava_positions)
-        if d_lava <= 2:
-            lava_factor = 0.0   # very near fire
-        elif d_lava <= 5:
-            lava_factor = 0.5   # near fire
-        else:
-            lava_factor = 1.0   # far from fire
-
         d_door = min_dist(door_positions)
-        door_factor = 1.0 if d_door <= 2 else 0.0  # near door = slow decay
-
-        dir_mod = self._DIR_MODIFIER.get(victim.direction, 0.0)
-
-        raw = 0.60 * lava_factor + 0.30 * door_factor + 0.10 * dir_mod
-        victim.deplete_rate = max(0.5, 2.0 - (5 / 3) * raw)  
+        if d_lava <= 2:
+            victim.deplete_rate = 3.0
+        elif d_door <= 2 or d_lava > 5:
+            victim.deplete_rate = 0.5
+        else:
+            victim.deplete_rate = 1.3
         victim.health = max(0.1, min(0.95, 0.95))
 
     def place_fake_victims(self, level_gen, i, j):
@@ -127,86 +120,75 @@ class VictimPlacer:
             obj = FakeVictim(shift, direction, color="red")
             level_gen.place_in_room(i, j, obj)
 
-    def _get_room_candidate_positions(self, level_gen, room, lava_positions, near_threshold=5):
-        """Return (near_lava, far_from_lava) lists of free positions in a room."""
+    def _get_room_candidate_positions(self, level_gen, room, lava_positions, door_positions):
+        """Classify free cells in a room into three tiers matching the health decay rates.
+
+        near:   d_lava <= 2               → fast decay (rate 2.0)
+        middle: 2 < d_lava <= 5           → medium decay (rate 1.5)
+        safe:   d_lava > 5 or d_door <= 2 → slow decay (rate 0.5)
+        """
         top_x, top_y = room.top
         size_x, size_y = room.size
-        near, far = [], []
+        near, middle, safe = [], [], []
         for y in range(top_y + 1, top_y + size_y - 1):
             for x in range(top_x + 1, top_x + size_x - 1):
                 if level_gen.grid.get(x, y) is not None:
                     continue
-                d = min(
+                d_lava = min(
                     (abs(x - lx) + abs(y - ly) for lx, ly in lava_positions),
                     default=float("inf"),
                 )
-                if d <= near_threshold:
+                d_door = min(
+                    (abs(x - dx) + abs(y - dy) for dx, dy in door_positions),
+                    default=float("inf"),
+                )
+                if d_lava <= 2:
                     near.append((x, y))
+                elif d_door <= 2 or d_lava > 5:
+                    safe.append((x, y))
                 else:
-                    far.append((x, y))
-        return near, far
+                    middle.append((x, y))
+        return near, middle, safe
 
     def place_all(self, level_gen, num_rows, num_cols):
-        """Place victims and fake victims in all rooms.
-
-        Half of real victims are placed near lava (distance <= 5),
-        half are placed far from lava (distance > 5).
-        """
+        """Place victims with ~33% in each distance tier (near/middle/safe lava)."""
         from minigrid.core.world_object import Door, Lava
 
         lava_positions = self._collect_positions(level_gen, Lava)
         door_positions = self._collect_positions(level_gen, Door)
         non_important = [d for d in self.DIRECTIONS if d != self.important_victim]
 
-        # How many victims per room should be near vs far lava
-        near_target = self.num_real_victims // 2
-        far_target = self.num_real_victims - near_target
+        # Build a shuffled tier sequence so ~1/3 of all victims land in each zone
+        total = num_rows * num_cols * self.num_real_victims
+        n = total // 3
+        tier_sequence = ["near"] * n + ["middle"] * n + ["safe"] * (total - 2 * n)
+        random.shuffle(tier_sequence)
+        tier_idx = 0
 
         for i in range(num_rows):
             for j in range(num_cols):
                 room = level_gen.get_room(i, j)
-                near_positions, far_positions = self._get_room_candidate_positions(
-                    level_gen, room, lava_positions
+                near, middle, safe = self._get_room_candidate_positions(
+                    level_gen, room, lava_positions, door_positions
                 )
-                random.shuffle(near_positions)
-                random.shuffle(far_positions)
+                pools = {"near": near, "middle": middle, "safe": safe}
 
-                # Build placement list: near_target near-lava, far_target far-lava
-                # Fall back to the other pool if one is exhausted
-                chosen_positions = []
-                near_pool = list(near_positions)
-                far_pool = list(far_positions)
+                for _ in range(self.num_real_victims):
+                    preferred = tier_sequence[tier_idx]
+                    tier_idx += 1
+                    pool = pools[preferred] or near or middle or safe
 
-                for _ in range(near_target):
-                    if near_pool:
-                        chosen_positions.append(near_pool.pop())
-                    elif far_pool:
-                        chosen_positions.append(far_pool.pop())
-
-                for _ in range(far_target):
-                    if far_pool:
-                        chosen_positions.append(far_pool.pop())
-                    elif near_pool:
-                        chosen_positions.append(near_pool.pop())
-
-                for k in range(self.num_real_victims):
-                    direction = (
-                        self.important_victim
-                        if room.locked
-                        else random.choice(non_important)
-                    )
+                    direction = self.important_victim if room.locked else random.choice(non_important)
                     victim = self._make_victim(direction)
 
-                    if k < len(chosen_positions):
-                        pos = chosen_positions[k]
+                    if pool:
+                        pos = random.choice(pool)
+                        pool.remove(pos)
                         level_gen.grid.set(pos[0], pos[1], victim)
                     else:
-                        # Fall back to random placement if no positions available
                         _, pos = level_gen.place_in_room(i, j, victim)
 
-                    self._assign_health(
-                        victim, pos, lava_positions, door_positions, level_gen
-                    )
+                    self._assign_health(victim, pos, lava_positions, door_positions, level_gen)
 
                 self.place_fake_victims(level_gen, i, j)
 
@@ -271,7 +253,9 @@ class LavaPlacer:
 
     def place_in_room(self, level_gen, i, j, num_lava=None):
         """
-        Place lava tiles in a specific room.
+        Place lava tiles evenly distributed across a room by dividing it into sectors.
+        One lava tile is placed in a random free cell within each sector.
+        Lava tiles will not be adjacent to each other or to doors.
 
         Args:
             level_gen: The level generator instance
@@ -279,23 +263,59 @@ class LavaPlacer:
             j: Room column index
             num_lava: Number of lava tiles to place (None = use lava_per_room)
         """
+        from minigrid.core.world_object import Door
+
         if num_lava is None:
             num_lava = self.lava_per_room
 
-        placed = 0
-        failures = 0
+        room = level_gen.get_room(i, j)
+        top_x, top_y = room.top
+        size_x, size_y = room.size
 
-        for _ in range(num_lava * 10):
+        inner_w = size_x - 2  # exclude border walls
+        inner_h = size_y - 2
+
+        # Cells forbidden for lava: adjacent to any door in this room
+        forbidden = set()
+        for bx in range(top_x, top_x + size_x):
+            for by in range(top_y, top_y + size_y):
+                if isinstance(level_gen.grid.get(bx, by), Door):
+                    for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                        forbidden.add((bx + dx, by + dy))
+
+        # Divide interior into a grid of num_lava sectors (roughly square)
+        cols = max(1, round(((inner_w / inner_h) * num_lava) ** 0.5))
+        rows = max(1, (num_lava + cols - 1) // cols)
+
+        sx = inner_w / cols
+        sy = inner_h / rows
+
+        sectors = [(c, r) for c in range(cols) for r in range(rows)]
+        random.shuffle(sectors)
+
+        placed = 0
+        for c, r in sectors:
             if placed >= num_lava:
                 break
-            try:
-                level_gen.place_in_room(i, j, Lava())
+            x0 = top_x + 1 + int(c * sx)
+            x1 = top_x + 1 + min(int((c + 1) * sx), inner_w)
+            y0 = top_y + 1 + int(r * sy)
+            y1 = top_y + 1 + min(int((r + 1) * sy), inner_h)
+
+            candidates = [
+                (x, y)
+                for x in range(x0, x1)
+                for y in range(y0, y1)
+                if level_gen.grid.get(x, y) is None and (x, y) not in forbidden
+            ]
+            if candidates:
+                x, y = random.choice(candidates)
+                level_gen.grid.set(x, y, Lava())
                 placed += 1
-                failures = 0
-            except Exception:
-                failures += 1
-                if failures >= 10:
-                    break  # Room is likely full
+                # Forbid all 8 neighbors so lava tiles are never adjacent
+                for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1),
+                                (-1, -1), (1, -1), (-1, 1), (1, 1)]:
+                    forbidden.add((x + dx, y + dy))
 
     def place_all(self, level_gen, num_rows, num_cols, skip_locked_rooms=False):
         """
