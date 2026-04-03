@@ -84,33 +84,73 @@ class VictimPlacer:
         return positions
 
     def _assign_health(self, victim, pos, lava_positions, door_positions, level_gen):
-        """Set victim health based on proximity to lava and doors.
+        """Set deplete_rate based on direction relative to nearest lava and distance.
 
-        Near fire thresholds:
-          - very near fire: distance <= 2  → lava_factor = 0.0 (fastest decay)
-          - near fire:      distance 3–5   → lava_factor = 0.5
-          - far from fire:  distance > 5   → lava_factor = 1.0 (slowest decay)
+        direction == "down": always 4.0 regardless of position.
 
-        Near door threshold:
-          - near door: distance <= 2 → door_factor = 1.0 (slowest decay)
-          - far door:  distance > 2  → door_factor = 0.0
+        Otherwise, classify victim direction as toward / perpendicular / away
+        from the nearest lava tile, then look up rate by distance tier:
+
+          distance        toward  perp  away
+          near  (d<=2)     3.0   2.0   1.5
+          medium(2<d<=5)   1.5   1.3   1.1
+          far/near-door    0.5   0.5   0.5
         """
+        if getattr(victim, "direction", None) == "down":
+            victim.deplete_rate = 6.0
+            victim.health = 0.60
+            return
+
         max_dist = (level_gen.width + level_gen.height) / 2
 
         def min_dist(targets):
             if not targets:
                 return max_dist
-            return min(abs(pos[0] - tx) + abs(pos[1] - ty) for tx, ty in targets)
+            return min(abs(pos[0] - t[0]) + abs(pos[1] - t[1]) for t in targets)
 
-        d_lava = min_dist(lava_positions)
         d_door = min_dist(door_positions)
-        if d_lava <= 2:
-            victim.deplete_rate = 3.0
-        elif d_door <= 2 or d_lava > 5:
+
+        if not lava_positions:
             victim.deplete_rate = 0.5
+            victim.health = 0.90
+            return
+
+        rates = {
+            "toward": {"near": 4, "medium": 2.75, "safe": 1, "door": 0.5},
+            "perp":   {"near": 2.75, "medium": 1.3, "safe": 0.5, "door": 0.5},
+            "away":   {"near": 1.5, "medium": 1.1, "safe": 0.25, "door": 0.05},
+        }
+
+        nearest_lava = min(lava_positions, key=lambda t: abs(pos[0] - t[0]) + abs(pos[1] - t[1]))
+        d = abs(pos[0] - nearest_lava[0]) + abs(pos[1] - nearest_lava[1])
+
+        if d_door <= 2:
+            tier = "door"
+        elif d > 5:
+            tier = "safe"
+        elif d <= 2:
+            tier = "near"
         else:
-            victim.deplete_rate = 1.3
-        victim.health = max(0.1, min(0.95, 0.95))
+            tier = "medium"
+
+        dx = nearest_lava[0] - pos[0]
+        dy = nearest_lava[1] - pos[1]
+        direction = getattr(victim, "direction", None)
+        if abs(dx) >= abs(dy):
+            toward_dir, away_dir = ("right", "left") if dx > 0 else ("left", "right")
+        else:
+            toward_dir, away_dir = ("down", "up") if dy > 0 else ("up", "down")
+
+        if direction == toward_dir:
+            orientation = "toward"
+        elif direction == away_dir:
+            orientation = "away"
+        else:
+            orientation = "perp"
+
+        victim.deplete_rate = rates[orientation][tier]
+        starting_health = {"down": 0.60, "up": 0.90, "left": 0.75, "right": 0.75}
+        victim.health = starting_health.get(getattr(victim, "direction", None), 0.90)
 
     def place_fake_victims(self, level_gen, i, j):
         """Place fake victims in a room using factory pattern."""
@@ -120,70 +160,87 @@ class VictimPlacer:
             obj = FakeVictim(shift, direction, color="red")
             level_gen.place_in_room(i, j, obj)
 
-    def _get_room_candidate_positions(self, level_gen, room, lava_positions, door_positions):
-        """Classify free cells in a room into three tiers matching the health decay rates.
-
-        near:   d_lava <= 2               → fast decay (rate 2.0)
-        middle: 2 < d_lava <= 5           → medium decay (rate 1.5)
-        safe:   d_lava > 5 or d_door <= 2 → slow decay (rate 0.5)
-        """
-        top_x, top_y = room.top
-        size_x, size_y = room.size
-        near, middle, safe = [], [], []
-        for y in range(top_y + 1, top_y + size_y - 1):
-            for x in range(top_x + 1, top_x + size_x - 1):
-                if level_gen.grid.get(x, y) is not None:
-                    continue
-                d_lava = min(
-                    (abs(x - lx) + abs(y - ly) for lx, ly in lava_positions),
-                    default=float("inf"),
-                )
-                d_door = min(
-                    (abs(x - dx) + abs(y - dy) for dx, dy in door_positions),
-                    default=float("inf"),
-                )
-                if d_lava <= 2:
-                    near.append((x, y))
-                elif d_door <= 2 or d_lava > 5:
-                    safe.append((x, y))
-                else:
-                    middle.append((x, y))
-        return near, middle, safe
-
     def place_all(self, level_gen, num_rows, num_cols):
-        """Place victims with ~33% in each distance tier (near/middle/safe lava)."""
+        """Place victims spread evenly across each room with 25% per direction.
+
+        Victims are placed using a sector grid so they cover the full room.
+        Directions are shuffled per room: 25% up, 25% down, 25% left, 25% right.
+        Locked rooms override all directions to important_victim.
+        """
         from minigrid.core.world_object import Door, Lava
 
         lava_positions = self._collect_positions(level_gen, Lava)
         door_positions = self._collect_positions(level_gen, Door)
-        non_important = [d for d in self.DIRECTIONS if d != self.important_victim]
 
-        # Build a shuffled tier sequence so ~1/3 of all victims land in each zone
-        total = num_rows * num_cols * self.num_real_victims
-        n = total // 3
-        tier_sequence = ["near"] * n + ["middle"] * n + ["safe"] * (total - 2 * n)
-        random.shuffle(tier_sequence)
-        tier_idx = 0
+        n = self.num_real_victims
+        per_dir = n // 4
+        leftover = n - 4 * per_dir
 
         for i in range(num_rows):
             for j in range(num_cols):
                 room = level_gen.get_room(i, j)
-                near, middle, safe = self._get_room_candidate_positions(
-                    level_gen, room, lava_positions, door_positions
-                )
-                pools = {"near": near, "middle": middle, "safe": safe}
+                top_x, top_y = room.top
+                size_x, size_y = room.size
+                inner_w = size_x - 2
+                inner_h = size_y - 2
 
-                for _ in range(self.num_real_victims):
-                    preferred = tier_sequence[tier_idx]
-                    tier_idx += 1
-                    pool = pools[preferred] or near or middle or safe
+                # 25% each direction, shuffled; locked rooms all use important_victim
+                if room.locked:
+                    directions = [self.important_victim] * n
+                else:
+                    dirs = self.DIRECTIONS * per_dir + random.choices(self.DIRECTIONS, k=leftover)
+                    random.shuffle(dirs)
+                    directions = dirs
 
-                    direction = self.important_victim if room.locked else random.choice(non_important)
+                # Pick up to 2 free cells near a door (manhattan distance <= 2)
+                n_door = 2
+                door_candidates = [
+                    (x, y)
+                    for y in range(top_y + 1, top_y + size_y - 1)
+                    for x in range(top_x + 1, top_x + size_x - 1)
+                    if level_gen.grid.get(x, y) is None
+                    and min(
+                        (abs(x - dx) + abs(y - dy) for dx, dy in door_positions),
+                        default=float("inf"),
+                    ) <= 2
+                ]
+                random.shuffle(door_candidates)
+                door_spots = door_candidates[:n_door]
+                reserved = set(door_spots)
+
+                # Place door victims (first n_door directions from the shuffled list)
+                for k, pos in enumerate(door_spots):
+                    victim = self._make_victim(directions[k])
+                    level_gen.grid.set(pos[0], pos[1], victim)
+                    self._assign_health(victim, pos, lava_positions, door_positions, level_gen)
+
+                # Place remaining victims in sectors, skipping reserved cells
+                n_sector = n - len(door_spots)
+                cols_s = max(1, round(((inner_w / inner_h) * n_sector) ** 0.5))
+                rows_s = max(1, (n_sector + cols_s - 1) // cols_s)
+                sx = inner_w / cols_s
+                sy = inner_h / rows_s
+
+                sectors = [(c, r) for c in range(cols_s) for r in range(rows_s)]
+                random.shuffle(sectors)
+                sectors = sectors[:n_sector]
+
+                for (c, r), direction in zip(sectors, directions[len(door_spots):]):
+                    x0 = top_x + 1 + int(c * sx)
+                    x1 = top_x + 1 + (inner_w if c == cols_s - 1 else int((c + 1) * sx))
+                    y0 = top_y + 1 + int(r * sy)
+                    y1 = top_y + 1 + (inner_h if r == rows_s - 1 else int((r + 1) * sy))
+
+                    candidates = [
+                        (x, y)
+                        for x in range(x0, x1)
+                        for y in range(y0, y1)
+                        if level_gen.grid.get(x, y) is None and (x, y) not in reserved
+                    ]
+
                     victim = self._make_victim(direction)
-
-                    if pool:
-                        pos = random.choice(pool)
-                        pool.remove(pos)
+                    if candidates:
+                        pos = random.choice(candidates)
                         level_gen.grid.set(pos[0], pos[1], victim)
                     else:
                         _, pos = level_gen.place_in_room(i, j, victim)
@@ -298,9 +355,9 @@ class LavaPlacer:
             if placed >= num_lava:
                 break
             x0 = top_x + 1 + int(c * sx)
-            x1 = top_x + 1 + min(int((c + 1) * sx), inner_w)
+            x1 = top_x + 1 + (inner_w if c == cols - 1 else int((c + 1) * sx))
             y0 = top_y + 1 + int(r * sy)
-            y1 = top_y + 1 + min(int((r + 1) * sy), inner_h)
+            y1 = top_y + 1 + (inner_h if r == rows - 1 else int((r + 1) * sy))
 
             candidates = [
                 (x, y)

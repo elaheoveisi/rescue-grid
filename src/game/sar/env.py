@@ -14,7 +14,7 @@ def build_sar_env(
     num_cols: int = 5,
     num_fake_victims: int = 10,
     num_real_victims: int = 4,
-    important_victim: str = "down",
+    important_victim: str = "up",
     lava_per_room: int = 10,
     locked_room_prob: float = 0.35,
     tile_size: int = 64,
@@ -180,12 +180,42 @@ class PickupVictimEnv(SARLevelGen):
         # Add lava obstacles (before victims to avoid blocking them)
         self.lava_placer.place_all(self, self.num_rows, self.num_cols)
 
-        # Place agent outside locked room
-        while True:
-            self.place_agent()
-            start_room = self.room_from_pos(*self.agent_pos)
-            if not start_room.locked:
-                break
+        # Place agent at the free cell farthest from all lava, outside locked rooms
+        from minigrid.core.world_object import Lava
+        lava_positions = [
+            (x, y)
+            for y in range(self.height)
+            for x in range(self.width)
+            if isinstance(self.grid.get(x, y), Lava)
+        ]
+
+        def min_lava_dist(x, y):
+            if not lava_positions:
+                return float("inf")
+            return min(abs(x - lx) + abs(y - ly) for lx, ly in lava_positions)
+
+        # Collect all free cells in non-locked rooms, pick the one farthest from lava
+        best_pos, best_dist = None, -1
+        for y in range(self.height):
+            for x in range(self.width):
+                if self.grid.get(x, y) is not None:
+                    continue
+                room = self.room_from_pos(x, y)
+                if getattr(room, "locked", False):
+                    continue
+                d = min_lava_dist(x, y)
+                if d > best_dist:
+                    best_dist, best_pos = d, (x, y)
+
+        if best_pos is not None:
+            self.agent_pos = best_pos
+            self.agent_dir = self._rand_int(0, 4)
+            self.grid.set(*best_pos, None)
+        else:
+            while True:
+                self.place_agent()
+                if not self.room_from_pos(*self.agent_pos).locked:
+                    break
 
         # Check that all objects (including victims) are reachable from agent start position
         if not self.unblocking:

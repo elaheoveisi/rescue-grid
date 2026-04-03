@@ -11,6 +11,7 @@ game:
   google_model: gemini-2.5-flash
   num_rows: 5
   num_cols: 5
+  room_size: 12
   num_fake_victims: 12
   num_real_victims: 12
   lava_per_room: 10

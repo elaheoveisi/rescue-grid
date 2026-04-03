@@ -34,8 +34,13 @@ class VictimBase(WorldObj):
         self.deplete_rate = 1.0
 
     def deplete(self, amount):
-        """Decrease health by amount * deplete_rate, clamped to 0."""
-        self.health = max(0.0, self.health - amount * self.deplete_rate)
+        """Decrease health by amount * deplete_rate, clamped to [0, 1].
+        Negative deplete_rate means the victim regenerates health."""
+        delta = amount * self.deplete_rate
+        if delta >= 0:
+            self.health = max(0.0, self.health - delta)
+        else:
+            self.health = min(1.0, self.health - delta)
 
     def can_overlap(self):
         """Victims cannot be walked over."""

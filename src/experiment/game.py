@@ -69,6 +69,7 @@ class SARGameTrial(LSLTrial):
             lava_per_room=config.get("lava_per_room", 10),
             num_rows=config.get("num_rows"),
             num_cols=config.get("num_cols"),
+            room_size=config.get("room_size", 14),
             camera_strategy=AgentFOVCamera(),
         )
         os.environ["SDL_VIDEO_FULLSCREEN_DISPLAY"] = str(config.get("display", 0))
