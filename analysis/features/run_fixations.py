@@ -94,6 +94,7 @@ def run_fixations(cfg: dict) -> None:
             eye_df[time_col] = (eye_df[time_col] - eye_df[time_col].iloc[0]) * 1000.0
 
             # drop missing gaze samples
+           """ It removes every row where x_col or y_col is NaN""".
             eye_df = eye_df.dropna(subset=[x_col, y_col])
 
             # scale normalized gaze (0-1) to pixels for distance-based detection
@@ -101,6 +102,7 @@ def run_fixations(cfg: dict) -> None:
             eye_df[y_col] = eye_df[y_col] * screen_h
 
             # run fixation detection
+            "Efix is the list of detected fixations returned by fixation_detection()"
             _, Efix = fixation_detection(
                 x=eye_df[x_col].to_numpy(),
                 y=eye_df[y_col].to_numpy(),

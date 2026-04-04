@@ -54,8 +54,7 @@ eyetracker:
   screen_h:    1080       # screen height in pixels (used to scale normalized -> pixels)
   missing:     0.0        # value used for missing/invalid samples
 
-  channels:                 # column names applied when saving eyetracker.h5/csv
-    - device_timestamp
+  channels:                 # column from tobii
     - avg_gaze_point_x
     - avg_gaze_point_y
     - avg_pupil_diam
