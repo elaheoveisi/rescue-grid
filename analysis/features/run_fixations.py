@@ -6,6 +6,8 @@ import pandas as pd
 import yaml
 from igaze.detectors import fixation_detection
 
+"The reason we used this: https://link.springer.com/article/10.3758/s13428-013-0422-2?utm_source=chatgpt.com"
+
 
 def fixation_summary(Efix: list) -> dict:
     if not Efix:

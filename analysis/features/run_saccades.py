@@ -9,7 +9,7 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / "igaze" / "igaze"))
 
-from detectors import saccade_detection  # noqa: E402
+from detectors import saccade_detection  
 
 CONFIG = ROOT / "configs" / "config_analysis.yml"
 
