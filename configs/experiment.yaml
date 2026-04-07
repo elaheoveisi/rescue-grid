@@ -14,7 +14,7 @@ game:
   room_size: 12
   num_fake_victims: 12
   num_real_victims: 12
-  lava_per_room: 10
+  lava_per_room: 8
   llm_nudge_interval: 50
   between_trail_recalibrate_eye_tracker: false
 

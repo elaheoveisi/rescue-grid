@@ -97,8 +97,8 @@ class VictimPlacer:
           far/near-door    0.5   0.5   0.5
         """
         if getattr(victim, "direction", None) == "down":
-            victim.deplete_rate = 6.0
-            victim.health = 0.60
+            victim.deplete_rate = 5.0
+            victim.health = 0.75
             return
 
         max_dist = (level_gen.width + level_gen.height) / 2
@@ -116,9 +116,9 @@ class VictimPlacer:
             return
 
         rates = {
-            "toward": {"near": 4, "medium": 2.75, "safe": 1, "door": 0.5},
-            "perp":   {"near": 2.75, "medium": 1.3, "safe": 0.5, "door": 0.5},
-            "away":   {"near": 1.5, "medium": 1.1, "safe": 0.25, "door": 0.05},
+            "toward": {"near": 3.25, "medium": 2.2, "safe": 0.75, "door": 0.25},
+            "perp":   {"near": 2.5, "medium": 1, "safe": 0.5, "door": 0.1},
+            "away":   {"near": 1.5, "medium": 0.75, "safe": 0.25, "door": 0.05},
         }
 
         nearest_lava = min(lava_positions, key=lambda t: abs(pos[0] - t[0]) + abs(pos[1] - t[1]))

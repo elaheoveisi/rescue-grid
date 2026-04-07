@@ -66,7 +66,7 @@ class SARGameTrial(LSLTrial):
             screen_size=screen_height,
             num_fake_victims=config.get("num_fake_victims", 12),
             num_real_victims=config.get("num_real_victims", 6),
-            lava_per_room=config.get("lava_per_room", 10),
+            lava_per_room=config.get("lava_per_room", 8),
             num_rows=config.get("num_rows"),
             num_cols=config.get("num_cols"),
             room_size=config.get("room_size", 14),
