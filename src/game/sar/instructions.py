@@ -9,8 +9,8 @@ def calculate_max_steps(
     num_cols: int,
     num_doors: int,
     victims_per_room: int,
-    human_exploration_factor: float = 0.5,
-    steps_per_victim: int = 5,
+    human_exploration_factor: float = 0.1,
+    steps_per_victim: int = 4,
     safety_buffer: float = 1.0,
 ):
     """
@@ -29,7 +29,7 @@ def calculate_max_steps(
     victims_per_room : int
         Number of real victims per room.
     human_exploration_factor : float
-        Multiplier for human inefficiency (default = 2.0).
+        Multiplier for human inefficiency (default = 0.2).
     steps_per_victim : int
         Extra steps to approach + rescue one victim.
     safety_buffer : float
@@ -63,7 +63,7 @@ def calculate_max_steps(
     # 6. Safety buffer for human mistakes
     max_steps = int(raw_steps * safety_buffer)
 
-    return max_steps
+    return max_steps*0 +1000
 
 
 class PickupAllVictimsInstr(Instr):

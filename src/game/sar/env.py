@@ -10,12 +10,12 @@ from .placers import LavaPlacer, LockedRoomPlacer, VictimPlacer, VictimTracker
 
 def build_sar_env(
     screen_size: int,
-    num_rows: int = 3,
-    num_cols: int = 3,
-    num_fake_victims: int = 5,
-    num_real_victims: int = 2,
-    important_victim: str = "down",
-    lava_per_room: int = 2,
+    num_rows: int = 5,
+    num_cols: int = 5,
+    num_fake_victims: int = 10,
+    num_real_victims: int = 4,
+    important_victim: str = "up",
+    lava_per_room: int = 8,
     locked_room_prob: float = 0.35,
     tile_size: int = 64,
     **kwargs,
@@ -44,13 +44,13 @@ def build_sar_env(
 class PickupVictimEnv(SARLevelGen):
     def __init__(
         self,
-        room_size=8,
+        room_size=14,
         num_rows=3,
         num_cols=3,
         num_dists=18,
         unblocking=False,
         add_lava=True,
-        lava_per_room=0,
+        lava_per_room=8,
         lava_probability=0.5,
         locked_room_prob=0.5,
         victim_placer=None,
@@ -72,7 +72,9 @@ class PickupVictimEnv(SARLevelGen):
         self.victim_tracker = VictimTracker()
         self.locked_room_placer = LockedRoomPlacer(locked_room_prob)
         self.lava_placer = LavaPlacer(
-            lava_per_room=lava_per_room, lava_probability=lava_probability, enabled=add_lava
+            lava_per_room=lava_per_room,
+            lava_probability=lava_probability,
+            enabled=add_lava,
         )
 
         # Custom actions
@@ -161,7 +163,7 @@ class PickupVictimEnv(SARLevelGen):
             num_doors=self._count_objects_by_type(Door),
         )
         self.max_steps = self.fixed_max_steps
-        self._deplete_amount = 1.0 / self.fixed_max_steps
+        self._deplete_amount = 17.5 / self.fixed_max_steps
         obs, info = super().reset(**kwargs)
         self.instrs.reset_verifier(self)
         self.total_victims = self._count_objects_by_type(REAL_VICTIMS)
@@ -180,12 +182,43 @@ class PickupVictimEnv(SARLevelGen):
         # Add lava obstacles (before victims to avoid blocking them)
         self.lava_placer.place_all(self, self.num_rows, self.num_cols)
 
-        # Place agent outside locked room
-        while True:
-            self.place_agent()
-            start_room = self.room_from_pos(*self.agent_pos)
-            if not start_room.locked:
-                break
+        # Place agent at the free cell farthest from all lava, outside locked rooms
+        from minigrid.core.world_object import Lava
+
+        lava_positions = [
+            (x, y)
+            for y in range(self.height)
+            for x in range(self.width)
+            if isinstance(self.grid.get(x, y), Lava)
+        ]
+
+        def min_lava_dist(x, y):
+            if not lava_positions:
+                return float("inf")
+            return min(abs(x - lx) + abs(y - ly) for lx, ly in lava_positions)
+
+        # Collect all free cells in non-locked rooms, pick the one farthest from lava
+        best_pos, best_dist = None, -1
+        for y in range(self.height):
+            for x in range(self.width):
+                if self.grid.get(x, y) is not None:
+                    continue
+                room = self.room_from_pos(x, y)
+                if getattr(room, "locked", False):
+                    continue
+                d = min_lava_dist(x, y)
+                if d > best_dist:
+                    best_dist, best_pos = d, (x, y)
+
+        if best_pos is not None:
+            self.agent_pos = best_pos
+            self.agent_dir = self._rand_int(0, 4)
+            self.grid.set(*best_pos, None)
+        else:
+            while True:
+                self.place_agent()
+                if not self.room_from_pos(*self.agent_pos).locked:
+                    break
 
         # Check that all objects (including victims) are reachable from agent start position
         if not self.unblocking:
@@ -216,14 +249,16 @@ class PickupVictimEnv(SARLevelGen):
         return obs, reward, terminated, truncated, info
 
     def show_all_victim_batteries(self, seconds: float = 10.0):
-        self.victim_tracker.show_visible_batteries(self.camera, self.width, self.height, seconds)
+        self.victim_tracker.show_visible_batteries(
+            self.camera, self.width, self.height, seconds
+        )
 
     def hide_all_victim_batteries(self):
         self.victim_tracker.hide_all_batteries()
 
     def _decay_visible_victim_health(self):
         self.victim_tracker.decay(
-            self.camera, self.grid, self.width, self.height, self._deplete_amount
+            self.camera, self.width, self.height, self._deplete_amount
         )
 
     def step(self, action):

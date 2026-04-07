@@ -22,11 +22,14 @@ class RescueAction(BaseAction):
 
         if isinstance(obj, REAL_VICTIMS):
             self.env.grid.set(*fwd_pos, None)
-            self.env.saved_victims += 1
-            reward = 1.0
+            if obj.health <= 0:
+                reward = -20
+            else:
+                self.env.saved_victims += 1
+                reward = 10
         elif isinstance(obj, FAKE_VICTIMS):
             self.env.grid.set(*fwd_pos, None)
-            reward = -0.5
+            reward = -10
         else:
             # fallback to normal pickup
             return self.fallback(self.env.actions.pickup)

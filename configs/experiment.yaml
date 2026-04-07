@@ -1,16 +1,20 @@
 display: &display 0
-fullscreen: &fullscreen false
+fullscreen: &fullscreen true
 
 game:
   display: *display
   fullscreen: *fullscreen
-  max_time: 10 # minutes
-  min_steps_percent: 80
+  max_time: 15 # minutes
+  min_steps_percent: 50
   prompt_type: sparse
   openai_model: gpt-5-mini-2025-08-07
   google_model: gemini-2.5-flash
-  num_rows: 2
-  num_cols: 2
+  num_rows: 5
+  num_cols: 5
+  room_size: 12
+  num_fake_victims: 12
+  num_real_victims: 12
+  lava_per_room: 8
   llm_nudge_interval: 50
   between_trail_recalibrate_eye_tracker: false
 

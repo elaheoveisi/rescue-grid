@@ -64,10 +64,12 @@ class SARGameTrial(LSLTrial):
         screen_height = pygame.display.Info().current_h
         env = build_sar_env(
             screen_size=screen_height,
-            num_fake_victims=2,
-            num_real_victims=5,
+            num_fake_victims=config.get("num_fake_victims", 12),
+            num_real_victims=config.get("num_real_victims", 6),
+            lava_per_room=config.get("lava_per_room", 8),
             num_rows=config.get("num_rows"),
             num_cols=config.get("num_cols"),
+            room_size=config.get("room_size", 14),
             camera_strategy=AgentFOVCamera(),
         )
         os.environ["SDL_VIDEO_FULLSCREEN_DISPLAY"] = str(config.get("display", 0))
@@ -99,13 +101,19 @@ class SARGameTrial(LSLTrial):
         return [ujson.dumps(state)]
 
     def execute(self) -> None:
-        min_steps_percent = self.parameters.get("min_steps_percent", 80) / 100
+        min_steps_percent = self.parameters.get("min_steps_percent", 50) / 100
         max_steps = self.gui.user.env.max_steps
 
         while self.gui.running:
             user = self.gui.user
-            enough = user.total_steps >= int(min_steps_percent * max_steps)
 
+            # Hard stop: 15-minute wall-clock limit or max_steps truncation
+            if user.remaining_time <= 0 or user.truncated:
+                self.gui.close()
+                break
+
+            # Soft stop: mission complete, but only after enough steps played
+            enough = user.total_steps >= int(min_steps_percent * max_steps)
             if enough and user.episode_ended:
                 self.gui.close()
                 break

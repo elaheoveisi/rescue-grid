@@ -31,10 +31,16 @@ class VictimBase(WorldObj):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.health = 1.0
+        self.deplete_rate = 1.0
 
     def deplete(self, amount):
-        """Decrease health by amount, clamped to 0."""
-        self.health = max(0.0, self.health - amount)
+        """Decrease health by amount * deplete_rate, clamped to [0, 1].
+        Negative deplete_rate means the victim regenerates health."""
+        delta = amount * self.deplete_rate
+        if delta >= 0:
+            self.health = max(0.0, self.health - delta)
+        else:
+            self.health = min(1.0, self.health - delta)
 
     def can_overlap(self):
         """Victims cannot be walked over."""
@@ -106,8 +112,6 @@ class Victim(VictimBase):
         return self._COORDS[self.direction]
 
     def render(self, img):
-        if int(self.health * 20) == 0:
-            return img
         if time.time() < self._battery_show_until:
             fill_coords(
                 img,
