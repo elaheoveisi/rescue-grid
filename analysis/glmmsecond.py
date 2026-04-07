@@ -66,7 +66,7 @@ def run_glmm(df, outcome):
         f"{outcome} ~ C(condition, Treatment('no_llm'))"
         " * C(expertise, Treatment('novice'))"
     )
-    with warnings.catch_warnings():
+    with warnings.catch_warnings(): #run repeated measure and handling warnings
         warnings.simplefilter("ignore", ConvergenceWarning)
         warnings.simplefilter("ignore", RuntimeWarning)
         try:

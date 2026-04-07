@@ -1,43 +1,57 @@
 
 
+ 
 from pathlib import Path
-
+ 
 import pandas as pd
 import yaml
 from igaze.detectors import fixation_detection
-
-"The reason we used this: https://link.springer.com/article/10.3758/s13428-013-0422-2?utm_source=chatgpt.com"
-
-
-def fixation_summary(Efix: list) -> dict:
+ 
+"The reason we used this: https://link.springer.com/article/10.3758/s13428-013-0422-2"
+ 
+ 
+def fixation_summary(Efix: list) -> dict:    
     if not Efix:
         return {"count": 0, "mean_duration_ms": 0.0, "total_duration_ms": 0.0}
-    durations = [f[2] for f in Efix]
+    durations = [f[2] for f in Efix]  # where f[2] is treated as duration, so the third element of each Efix row is expected to be duration.
     return {
         "count":            len(durations),
         "mean_duration_ms": sum(durations) / len(durations),
         "total_duration_ms": sum(durations),
     }
-
+ 
 ROOT = Path(__file__).resolve().parent.parent.parent
-
+ 
 CONFIG = ROOT / "configs" / "config_analysis.yml"
-
-
+ 
+#This function, fixation_summary, takes a list of fixations (Efix)
+# and returns a dictionary with the total count, mean duration,
+# and total duration of the fixations. If the list is empty, it returns zeros for all values.
+ 
+"""Efix is the list of detected fixations returned by fixation_detection(...) in analysis/features/run_fixations.py:111.
+ 
+In this file, it behaves like a list where each item is one fixation record:
+ 
+start time
+end time
+duration
+x position
+y position"""
+ 
 # ---------------------------------------------------------------------------
 # Load
 # ---------------------------------------------------------------------------
-
+ 
 def load_subject_trials(subject_id: str, intermediate_dir: Path) -> dict[str, dict]:
     """Load all trial eyetracker.h5 files for a subject.
-
+ 
     Returns:
         data[trial_id]["eyetracker"] -> DataFrame
     """
     sub_dir = intermediate_dir / f"sub-{subject_id}"
     if not sub_dir.exists():
         return {}
-
+ 
     data = {}
     for trial_dir in sorted(sub_dir.iterdir()):
         if not trial_dir.is_dir():
@@ -49,19 +63,19 @@ def load_subject_trials(subject_id: str, intermediate_dir: Path) -> dict[str, di
             "eyetracker": pd.read_hdf(h5, key="eyetracker")
         }
     return data
-
-
+ 
+ 
 # ---------------------------------------------------------------------------
 # Run fixations
 # ---------------------------------------------------------------------------
-
+ 
 def run_fixations(cfg: dict) -> None:
     subjects        = [str(s) for s in cfg.get("sub", [])]
     intermediate    = ROOT / cfg["paths"]["intermediate"]
     processed       = ROOT / cfg["paths"]["processed"]
     eye_cfg         = cfg.get("eyetracker", {})
     fix_cfg         = cfg.get("fixation", {})
-
+ 
     x_col    = eye_cfg["x_col"]
     y_col    = eye_cfg["y_col"]
     time_col = eye_cfg["time_col"]
@@ -70,39 +84,38 @@ def run_fixations(cfg: dict) -> None:
     missing  = eye_cfg["missing"]
     maxdist  = fix_cfg["maxdist"]
     mindur   = fix_cfg["mindur"]
-
+ 
     summaries      = []
     best_summaries = []
-
+ 
     for sid in subjects:
         data = load_subject_trials(sid, intermediate)
-
+ 
         if not data:
             print(f"[SKIP] P{sid}: no trial data in {intermediate.relative_to(ROOT)}")
             continue
-
+ 
         print(f"[SUB]  {sid}")
-
+ 
         for trial_id, streams in data.items():
             # Process all runs, not just _best
-
+ 
             eye_df = streams["eyetracker"].copy()
-
+ 
             if eye_df.empty:
                 print(f"         {trial_id:35s}  empty eyetracker — skipping")
                 continue
-
+ 
             # convert timestamps to relative ms
             eye_df[time_col] = (eye_df[time_col] - eye_df[time_col].iloc[0]) * 1000.0
-
+ 
             # drop missing gaze samples
-           """ It removes every row where x_col or y_col is NaN""".
             eye_df = eye_df.dropna(subset=[x_col, y_col])
-
+ 
             # scale normalized gaze (0-1) to pixels for distance-based detection
             eye_df[x_col] = eye_df[x_col] * screen_w
             eye_df[y_col] = eye_df[y_col] * screen_h
-
+ 
             # run fixation detection
             "Efix is the list of detected fixations returned by fixation_detection()"
             _, Efix = fixation_detection(
@@ -114,15 +127,15 @@ def run_fixations(cfg: dict) -> None:
                 mindur=mindur,
             )
             summary = fixation_summary(Efix)
-
+ 
             print(f"         {trial_id:35s}  "
                   f"fixations={summary['count']:>4}  "
                   f"mean_dur={summary['mean_duration_ms']:>7.1f}ms")
-
+ 
             # save
             out_dir = processed / f"sub-{sid}" / trial_id
             out_dir.mkdir(parents=True, exist_ok=True)
-
+ 
             if Efix:
                 fix_df = pd.DataFrame(
                     Efix, columns=["start_ms", "end_ms", "duration_ms", "x", "y"]
@@ -130,7 +143,7 @@ def run_fixations(cfg: dict) -> None:
                 fix_df.to_csv(out_dir / "fixations.csv", index=False)
                 fix_df.to_hdf(out_dir / "fixations.h5", key="fixations", mode="w")
                 streams["fixations"] = fix_df
-
+ 
             row = {
                 "subject": sid, "trial": trial_id,
                 "maxdist": maxdist, "mindur": mindur,
@@ -139,7 +152,7 @@ def run_fixations(cfg: dict) -> None:
             summaries.append(row)
             if trial_id.endswith("_best"):
                 best_summaries.append(row)
-
+ 
     # save overall summary
     if summaries:
         summary_df = pd.DataFrame(summaries)
@@ -147,7 +160,7 @@ def run_fixations(cfg: dict) -> None:
         out_path.parent.mkdir(parents=True, exist_ok=True)
         summary_df.to_csv(out_path, index=False)
         print(f"\nSummary          -> {out_path.relative_to(ROOT)}")
-
+ 
     # save best-run summary
     if best_summaries:
         best_df  = pd.DataFrame(best_summaries)
@@ -157,14 +170,16 @@ def run_fixations(cfg: dict) -> None:
         print(best_df.to_string(index=False))
     else:
         print("\nNo fixations computed.")
-
-
+ 
+ 
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
-
+ 
 if __name__ == "__main__":
     with open(CONFIG) as f:
         cfg = yaml.safe_load(f)
-
+ 
     run_fixations(cfg)
+ 
+ 
