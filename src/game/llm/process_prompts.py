@@ -2,7 +2,6 @@ from pathlib import Path
 
 import pandas as pd
 import yaml
-
 from game.sar.observations import (
     FAKE_VICTIM,
     LAVA,
@@ -121,9 +120,23 @@ def _build_table(obs: dict) -> str:
                     saveable = "—"
                     sort_urgency = 99999
             elif kind == "fake_victim":
-                status, tool, health, margin, saveable, sort_urgency = "Decoy", "None", "—", "—", "—", 99999
+                status, tool, health, margin, saveable, sort_urgency = (
+                    "Decoy",
+                    "None",
+                    "—",
+                    "—",
+                    "—",
+                    99999,
+                )
             else:
-                status, tool, health, margin, saveable, sort_urgency = "Available", "None", "—", "—", "—", 99999
+                status, tool, health, margin, saveable, sort_urgency = (
+                    "Available",
+                    "None",
+                    "—",
+                    "—",
+                    "—",
+                    99999,
+                )
 
             visible = "Yes" if cx0 <= x < cx1 and cy0 <= y < cy1 else "No"
             rows.append(

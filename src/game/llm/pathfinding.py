@@ -11,14 +11,14 @@ from collections import deque
 from dataclasses import dataclass
 
 from game.sar.observations import (
-    LAVA,
-    WALL,
+    _COLORS,
     DOOR_BASE,
     KEY_BASE,
-    _COLORS,
+    LAVA,
+    WALL,
+    decode_door,
     is_door,
     is_key,
-    decode_door,
 )
 
 _EMPTY = 0
@@ -130,7 +130,9 @@ def query_all_objects(obs: dict) -> dict[tuple[int, int], PathResult]:
                     best_neighbor = (nx, ny)
 
             if best_neighbor is None:
-                results[(x, y)] = PathResult(reachable=False, path_length=None, blocking_doors=[])
+                results[(x, y)] = PathResult(
+                    reachable=False, path_length=None, blocking_doors=[]
+                )
             else:
                 results[(x, y)] = PathResult(
                     reachable=True,

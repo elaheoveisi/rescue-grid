@@ -3,15 +3,14 @@ from pathlib import Path
 import ray
 import yaml
 from dotenv import load_dotenv
+from experiment.game import SARGame
+from experiment.tutorial import SARTutorial
 from ixp.experiment import Experiment
 from ixp.individual_difference.mot import MOT
 from ixp.individual_difference.vs import VS
 from ixp.sensors.eye_tracker.tobii import TobiiEyeTracker
 from ixp.surveys.nasa_tlx import NasaTLX
 from ixp.surveys.sart import SART
-
-from experiment.game import SARGame
-from experiment.tutorial import SARTutorial
 from utils import skip_run
 
 load_dotenv()
@@ -82,7 +81,7 @@ with skip_run("skip", "sar_experiment") as check, check():
         task_config={"config": config["surveys"]},
         order=5,
         instructions=instructions["sart"],
-    )   
+    )
     experiment.add_task(
         name="nasa_tlx",
         task_cls=NasaTLX,

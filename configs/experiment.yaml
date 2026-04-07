@@ -1,5 +1,5 @@
 display: &display 0
-fullscreen: &fullscreen false
+fullscreen: &fullscreen true
 
 game:
   display: *display

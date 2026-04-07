@@ -72,7 +72,9 @@ class PickupVictimEnv(SARLevelGen):
         self.victim_tracker = VictimTracker()
         self.locked_room_placer = LockedRoomPlacer(locked_room_prob)
         self.lava_placer = LavaPlacer(
-            lava_per_room=lava_per_room, lava_probability=lava_probability, enabled=add_lava
+            lava_per_room=lava_per_room,
+            lava_probability=lava_probability,
+            enabled=add_lava,
         )
 
         # Custom actions
@@ -182,6 +184,7 @@ class PickupVictimEnv(SARLevelGen):
 
         # Place agent at the free cell farthest from all lava, outside locked rooms
         from minigrid.core.world_object import Lava
+
         lava_positions = [
             (x, y)
             for y in range(self.height)
@@ -246,14 +249,16 @@ class PickupVictimEnv(SARLevelGen):
         return obs, reward, terminated, truncated, info
 
     def show_all_victim_batteries(self, seconds: float = 10.0):
-        self.victim_tracker.show_visible_batteries(self.camera, self.width, self.height, seconds)
+        self.victim_tracker.show_visible_batteries(
+            self.camera, self.width, self.height, seconds
+        )
 
     def hide_all_victim_batteries(self):
         self.victim_tracker.hide_all_batteries()
 
     def _decay_visible_victim_health(self):
         self.victim_tracker.decay(
-            self.camera, self.grid, self.width, self.height, self._deplete_amount
+            self.camera, self.width, self.height, self._deplete_amount
         )
 
     def step(self, action):
