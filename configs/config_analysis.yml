@@ -31,6 +31,32 @@ paths:
   intermediate: data/intermediate   # output of xdf.py  (per-trial h5/csv)
   processed:    data/processed       # output of fixations/saccades
 
+xdf:
+  game_stream: SARGame
+  eye_stream: TobiiEyeTracker
+  trial_field: trial_id
+  reset_field: step_count
+  reset_drop_threshold: 5
+  active_status_field: mission_status
+  active_status_value: continue
+  output:
+    subject_dir_template: "sub-{subject_id}"
+    run_key_template: "{trial_id}_run{run_index}"
+    best_dir_template: "{base}_best"
+    run_suffix_pattern: "_run\\d+$"
+    write_csv: true
+    write_hdf: true
+    files:
+      game_csv: game.csv
+      eyetracker_csv: eyetracker.csv
+      game_h5: game.h5
+      eyetracker_h5: eyetracker.h5
+  victim_count:
+    columns: [saved_victims]
+    contains:
+      - [victim, saved]
+      - [victim]
+
 glmm2:
   datasets:
     - name: features_q
@@ -41,9 +67,9 @@ glmm2:
     - name: best_features
       source: best_features.csv     # one row per trial, best trials only
       dataframes: [best_features.csv]
-  continuous: [victims_per_step, mean_fixation_dur_ms, mean_saccade_amp_px,
-               game_area_pct_dur, chat_panel_pct_dur, info_panel_pct_dur]
-  count:      [n_fixations, n_saccades, n_actions, n_llm_calls, saved_victims]
+  continuous: [victims_per_step, mean_fixation_dur_ms, std_pupil_diam,
+               game_area_pct_dur, chat_panel_pct_dur, offscreen_pct_dur]
+  count:      [n_fixations, n_saccades, saved_victims]
   quarters:   [25, 50, 75, 100]
 
 eyetracker:
@@ -55,6 +81,7 @@ eyetracker:
   missing:     0.0        # value used for missing/invalid samples
 
   channels:                 # column from tobii
+    - device_time_stamp
     - avg_gaze_point_x
     - avg_gaze_point_y
     - avg_pupil_diam

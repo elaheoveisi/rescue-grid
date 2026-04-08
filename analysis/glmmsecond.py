@@ -2,48 +2,16 @@ from pathlib import Path
 import warnings
 import numpy as np
 import pandas as pd
-import yaml
-import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from statsmodels.stats.multitest import multipletests
 from statsmodels.tools.sm_exceptions import ConvergenceWarning
 
-ROOT   = Path(__file__).resolve().parent.parent
-CONFIG = ROOT / "configs" / "config_analysis.yml"
-
-with open(CONFIG) as f:
-    cfg = yaml.safe_load(f)
-
-processed_dir = ROOT / cfg["paths"]["processed"]
-glmm2_cfg     = cfg["glmm2"]
-
-# Load dataframes defined in config
-
-dataframes = {}
-for dataset in glmm2_cfg["datasets"]:
-    for fname in dataset.get("dataframes", []):
-        path = processed_dir / fname
-        key  = fname.replace(".csv", "")
-        dataframes[key] = pd.read_csv(path)
 
 
-FEATURES = [
-    "victims_per_step",
-    "n_fixations",
-    "mean_fixation_dur_ms",
-    "std_pupil_diam",
-    "n_saccades",
-    "game_area_pct_dur",
-    "chat_panel_pct_dur",
-    "saved_victims",
-    "offscreen_pct_dur",
-]
 
-expertise_map = {str(k): str(v) for k, v in cfg.get("expertise", {}).items()}
-
-
-def prepare_df(df):
+def prepare_df(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     """Add condition and expertise columns, keep only FEATURES + id cols."""
+    expertise_map = {str(k): str(v) for k, v in cfg.get("expertise", {}).items()}
     df = df.copy()
     df["condition"] = df["category"].apply(
         lambda c: "no_llm" if c == "dummy" else "llm"
@@ -51,13 +19,14 @@ def prepare_df(df):
     df["expertise"] = df["participant"].str.replace("sub-", "", regex=False).map(expertise_map).fillna("unknown")
     df["condition"] = pd.Categorical(df["condition"], categories=["no_llm", "llm"])
     df["expertise"] = pd.Categorical(df["expertise"], categories=["novice", "expert"])
+    features = cfg["glmm2"]["continuous"] + cfg["glmm2"]["count"]
     keep = ["participant", "category", "condition", "expertise"] + [
-        f for f in FEATURES if f in df.columns
+        f for f in features if f in df.columns
     ]
     return df[keep]
 
 
-def run_glmm(df, outcome):
+def run_glmm(df: pd.DataFrame, outcome: str):
     """Fit a mixed LM for one outcome: condition * expertise, random intercept per participant."""
     clean = df.dropna(subset=[outcome]).copy()
     if clean.empty:
@@ -66,7 +35,7 @@ def run_glmm(df, outcome):
         f"{outcome} ~ C(condition, Treatment('no_llm'))"
         " * C(expertise, Treatment('novice'))"
     )
-    with warnings.catch_warnings(): #run repeated measure and handling warnings
+    with warnings.catch_warnings():
         warnings.simplefilter("ignore", ConvergenceWarning)
         warnings.simplefilter("ignore", RuntimeWarning)
         try:
@@ -77,14 +46,25 @@ def run_glmm(df, outcome):
     return model
 
 
-def run_all(verbose=True):
+def run_all(cfg: dict, root: Path,
+            dataframes: dict, verbose: bool = True) -> pd.DataFrame:
+    """Run GLMM on all datasets.
+
+    Args:
+        cfg:        Full config dict.
+        root:       Project root path (from main.py).
+        dataframes: {name: DataFrame} from run_extract_features().
+        verbose:    Print progress.
+    """
+    processed_dir = root / cfg["paths"]["processed"]
+    features      = cfg["glmm2"]["continuous"] + cfg["glmm2"]["count"]
     rows = []
     for name, df in dataframes.items():
-        prepared = prepare_df(df)
+        prepared = prepare_df(df, cfg)
         if verbose:
             print(f"\n=== {name} ===")
             print(prepared[["condition", "expertise"]].value_counts().to_string())
-        for outcome in FEATURES:
+        for outcome in features:
             if outcome not in prepared.columns:
                 continue
             model = run_glmm(prepared, outcome)
@@ -111,10 +91,8 @@ def run_all(verbose=True):
         out = processed_dir / "glmm2_results.csv"
         results.to_csv(out, index=False)
         if verbose:
-            print(f"\nResults saved -> {out.relative_to(ROOT)}")
+            print(f"\nResults saved -> {out.relative_to(root)}")
             print(results.to_string(index=False))
     return results
 
 
-if __name__ == "__main__":
-    run_all()

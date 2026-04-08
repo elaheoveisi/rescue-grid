@@ -1,121 +1,159 @@
-import os
+from pathlib import Path
+
 import pandas as pd
-import numpy as np
- 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DATA_PROCESSED = os.path.join(ROOT, 'data', 'processed')
-DATA_INTERMEDIATE = os.path.join(ROOT, 'data', 'intermediate')
-PARTICIPANTS = [f'sub-P{str(i).zfill(3)}' for i in range(1, 11)]
-"""generates numbers from 1 to 10, formats them as three-digit strings (e.g., '001', '002', ..., '010'), and then creates participant IDs by prefixing each formatted number with 'sub-P' (e.g., 'sub-P001', 'sub-P002', ..., 'sub-P010')."""
-CATEGORIES = ['gemini', 'openai', 'dummy']
- 
-def infer_category(trial_id):
-    """Infer category from trial directory name."""
-    for cat in CATEGORIES:
-        if cat in trial_id:
-            return cat
-    return 'unknown'
- 
-def get_all_trial_ids(participant):
-    """Return all trial directory names for a participant under data/processed."""
-    sub_dir = os.path.join(DATA_PROCESSED, participant)
-    if not os.path.isdir(sub_dir):
-        return []
-    return [d for d in sorted(os.listdir(sub_dir)) if os.path.isdir(os.path.join(sub_dir, d))]
- 
-def get_trial_paths(participant, trial_id):
-    trial_dir  = os.path.join(DATA_PROCESSED, participant, trial_id)
-    interm_dir = os.path.join(DATA_INTERMEDIATE, participant, trial_id)
-    return {
-        'fixations':      os.path.join(trial_dir, 'fixations.csv'),
-        'fixations_aoi':  os.path.join(trial_dir, 'fixations_aoi.csv'),
-        'aoi_transitions': os.path.join(trial_dir, 'aoi_transitions.csv'),
-        'saccades':       os.path.join(trial_dir, 'saccades.csv'),
-        'game':           os.path.join(interm_dir, 'game.csv'),
+import yaml
+
+from analysis.data.xdf import load_all_subjects
+from analysis.features.eyetracking_features import run_eyetracking_features
+
+
+# ---------------------------------------------------------------------------
+# Feature extractors (operate on in-memory DataFrames)
+# ---------------------------------------------------------------------------
+
+def extract_fixation_features(fix_df: pd.DataFrame, fix_aoi_df: pd.DataFrame) -> dict:
+    features = {
+        "n_fixations":           len(fix_df),
+        "mean_fixation_dur_ms":  fix_df["duration_ms"].mean() if not fix_df.empty else 0.0,
+        "total_fixation_dur_ms": fix_df["duration_ms"].sum()  if not fix_df.empty else 0.0,
     }
- 
-def extract_fixation_features(fix_df, fix_aoi_df):
-    features = {}
-    features['n_fixations'] = len(fix_df)
-    features['mean_fixation_dur_ms'] = fix_df['duration_ms'].mean()
-    features['total_fixation_dur_ms'] = fix_df['duration_ms'].sum()
-    if 'aoi' in fix_aoi_df.columns:
-        aoi_dur = fix_aoi_df.groupby('aoi')['duration_ms'].sum()
-        total = aoi_dur.sum()
+    if not fix_aoi_df.empty and "aoi" in fix_aoi_df.columns:
+        aoi_dur = fix_aoi_df.groupby("aoi")["duration_ms"].sum()
+        total   = aoi_dur.sum()
         for aoi, dur in aoi_dur.items():
-            features[f'{aoi}_pct_dur'] = dur / total if total > 0 else 0
-            features[f'n_fixations_{aoi}'] = (fix_aoi_df['aoi'] == aoi).sum()
+            features[f"{aoi}_pct_dur"]      = dur / total if total > 0 else 0.0
+            features[f"n_fixations_{aoi}"]  = int((fix_aoi_df["aoi"] == aoi).sum())
     return features
- 
-def extract_transition_features(trans_df):
-    features = {}
-    if trans_df.shape[0] > 0:
-        src_aois = trans_df.columns[1:]
-        for i, src in enumerate(src_aois):
-            for j, dst in enumerate(src_aois): #enumerate(src_aois) returns pairs of (index, value) for each element in src_aois
-                val = trans_df.iloc[i, j+1]  # j is the index (0, 1, 2, ...).# dst is the value at that index in src_aois.
-                features[f'transitions_{src}_{dst}'] = val
-    return features
- 
-def extract_game_features(game_df):
-    features = {}
-    features['mean_reward'] = game_df['reward'].mean()
-    features['n_actions'] = game_df['action'].notna().sum()
-    features['n_llm_calls'] = game_df['llm_response'].notna().sum() if 'llm_response' in game_df.columns else 0
-    features['victims_per_step'] = (game_df['saved_victims'].max() / game_df['step_count'].max()) if game_df['step_count'].max() else 0
-    features['saved_victims'] = game_df['saved_victims'].max()
-    return features
- 
-def extract_saccade_features(participant, trial_id):
-    saccades_path = os.path.join(DATA_PROCESSED, participant, trial_id, 'saccades.csv')
-    if not os.path.exists(saccades_path):
-        return {}
-    try:
-        sac_df = pd.read_csv(saccades_path)
-    except Exception:
-        return {}
+
+
+def extract_saccade_features(sac_df: pd.DataFrame) -> dict:
     if sac_df.empty:
         return {}
     return {
-        'n_saccades':                len(sac_df),
-        'saccades_total_duration_ms': sac_df['duration_ms'].sum(),
-        'saccades_mean_duration_ms':  sac_df['duration_ms'].mean(),
-        'saccades_mean_amplitude_px': sac_df['amplitude'].mean(),
+        "n_saccades":                 len(sac_df),
+        "mean_saccade_dur_ms":        sac_df["duration_ms"].mean(),
+        "mean_saccade_amp_px":        sac_df["amplitude"].mean(),
+        "saccades_total_duration_ms": sac_df["duration_ms"].sum(),
     }
- 
-def extract_features_for_trial(participant, trial_id):
-    paths = get_trial_paths(participant, trial_id)
-    try:
-        fix_df     = pd.read_csv(paths['fixations'])
-        fix_aoi_df = pd.read_csv(paths['fixations_aoi'])
-        trans_df   = pd.read_csv(paths['aoi_transitions'])
-        game_df    = pd.read_csv(paths['game'])
-    except Exception as e:
-        print(f"Skipping {participant} {trial_id}: {e}")
-        return None
-    category = infer_category(trial_id)
-    features = {'participant': participant, 'trial': trial_id, 'category': category}
-    features.update(extract_fixation_features(fix_df, fix_aoi_df))
-    features.update(extract_transition_features(trans_df))
-    features.update(extract_game_features(game_df))
-    features.update(extract_saccade_features(participant, trial_id))
+
+
+def extract_transition_features(trans_df: pd.DataFrame) -> dict:
+    features = {}
+    for src in trans_df.index:
+        for dst in trans_df.columns:
+            features[f"transitions_{src}_{dst}"] = trans_df.loc[src, dst]
     return features
- 
-def main():
-    best_features = []
-    for participant in PARTICIPANTS:
-        for trial_id in get_all_trial_ids(participant):
-            if not trial_id.endswith('_best'):
+
+
+def extract_pupil_features(eye_df: pd.DataFrame, eye_cfg: dict) -> dict:
+    pupil_col = "avg_pupil_diam"
+    if pupil_col not in eye_df.columns:
+        return {}
+    series = pd.to_numeric(eye_df[pupil_col], errors="coerce")
+    missing_val = eye_cfg.get("missing", 0.0)
+    series = series.replace(missing_val, pd.NA).dropna()
+    if series.empty:
+        return {}
+    return {"std_pupil_diam": float(series.std())}
+
+
+def extract_game_features(game_df: pd.DataFrame) -> dict:
+    features = {
+        "n_actions":    int(game_df["action"].notna().sum()),
+        "n_llm_calls":  int(game_df["llm_response"].notna().sum()) if "llm_response" in game_df.columns else 0,
+        "saved_victims": int(game_df["saved_victims"].max()),
+    }
+    max_steps = game_df["step_count"].max()
+    features["victims_per_step"] = (features["saved_victims"] / max_steps) if max_steps else 0.0
+    return features
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+
+def run_extract_features(cfg: dict, preloaded: dict, eyetracking: dict,
+                         root=None) -> pd.DataFrame:
+    """Extract per-trial features for _best trials and save best_features.csv.
+
+    Args:
+        cfg:         Full config dict.
+        preloaded:   {subject_id: {trial_id: {"game": df, "eyetracker": df}}}
+        eyetracking: Output of run_eyetracking_features() —
+                     {"fixations": {sid: {trial_id: {"fixations": df, ...}}},
+                      "saccades":  {sid: {trial_id: {"saccades":  df, ...}}},
+                      "aoi":       {sid: {trial_id: {"fix_aoi": df, "transitions": df, ...}}}}
+
+    Returns:
+        DataFrame with one row per best trial.
+    """
+    if root is None:
+        root = Path(__file__).resolve().parents[2]
+    subjects      = [str(s) for s in cfg.get("sub", [])]
+    expertise     = cfg.get("expertise", {})
+    processed_dir = root / cfg["paths"]["processed"]
+
+    eye_cfg    = cfg.get("eyetracker", {})
+    fix_by_sub = eyetracking.get("fixations", {})
+    sac_by_sub = eyetracking.get("saccades",  {})
+    aoi_by_sub = eyetracking.get("aoi",       {})
+
+    rows = []
+    for sid in subjects:
+        trials = preloaded.get(sid, {})
+        for trial_id, streams in trials.items():
+            if not trial_id.endswith("_best"):
                 continue
-            feats = extract_features_for_trial(participant, trial_id)
-            if feats:
-                best_features.append(feats)
- 
-    best_out = os.path.join(DATA_PROCESSED, 'best_features.csv')
-    pd.DataFrame(best_features).to_csv(best_out, index=False)
-    print(f'Best trials -> {best_out}')
- 
-if __name__ == '__main__':
-    main()
- 
- 
+
+            game_df = streams.get("game",        pd.DataFrame())
+            eye_df  = streams.get("eyetracker",  pd.DataFrame())
+            fix_res = fix_by_sub.get(sid, {}).get(trial_id, {})
+            sac_res = sac_by_sub.get(sid, {}).get(trial_id, {})
+            aoi_res = aoi_by_sub.get(sid, {}).get(trial_id, {})
+
+            fix_df      = fix_res.get("fixations",   pd.DataFrame())
+            sac_df      = sac_res.get("saccades",    pd.DataFrame())
+            fix_aoi_df  = aoi_res.get("fix_aoi",     pd.DataFrame())
+            trans_df    = aoi_res.get("transitions",  pd.DataFrame())
+
+            base_name = trial_id.replace("_best", "")
+            category  = next((c for c in ["gemini", "openai", "dummy"] if c in base_name), "unknown")
+
+            row = {
+                "participant": f"sub-{sid}",
+                "trial":       trial_id,
+                "category":    category,
+                "expertise":   expertise.get(sid, "unknown"),
+            }
+            if not game_df.empty:
+                row.update(extract_game_features(game_df))
+            if not eye_df.empty:
+                row.update(extract_pupil_features(eye_df, eye_cfg))
+            row.update(extract_fixation_features(fix_df, fix_aoi_df))
+            if not sac_df.empty:
+                row.update(extract_saccade_features(sac_df))
+            if not trans_df.empty:
+                row.update(extract_transition_features(trans_df))
+
+            rows.append(row)
+            print(f"  {sid}  {trial_id:35s}  victims={row.get('saved_victims', '?')}  "
+                  f"fixations={row.get('n_fixations', '?')}  saccades={row.get('n_saccades', '?')}")
+
+    df = pd.DataFrame(rows)
+    if not df.empty:
+        out = processed_dir / "best_features.csv"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        df.to_csv(out, index=False)
+        print(f"\nbest_features -> {out.relative_to(root)}")
+    return df
+
+
+if __name__ == "__main__":
+    _root   = Path(__file__).resolve().parents[2]
+    _config = _root / "configs" / "config_analysis.yml"
+    with open(_config) as f:
+        cfg = yaml.safe_load(f)
+
+    preloaded   = load_all_subjects(cfg)
+    eyetracking = run_eyetracking_features(cfg, preloaded=preloaded, root=_root)
+    run_extract_features(cfg, preloaded, eyetracking, root=_root)

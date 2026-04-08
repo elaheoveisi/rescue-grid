@@ -1,11 +1,11 @@
 import yaml
 from pathlib import Path
 
-from analysis.data.xdf import run_from_config as run_xdf
-from analysis.features.run_fixations import run_fixations
-from analysis.features.run_saccades import run_saccades
-from analysis.glmm import run_from_config
-from analysis.glmmsecond import main as run_glmmsecond
+from analysis.data.xdf import collect_subjects, load_all_subjects
+from analysis.features.extract_features import run_extract_features
+from analysis.features.eyetracking_features import run_eyetracking_features
+#from analysis.glmm import run_from_config
+from analysis.glmmsecond import run_all as run_glmmsecond
 from src.utils import skip_run
 
 ROOT   = Path(__file__).resolve().parent
@@ -15,17 +15,23 @@ if __name__ == "__main__":
 	with open(CONFIG) as f:
 		cfg = yaml.safe_load(f)
 
+	preloaded = {}
+
 	with skip_run("skip", "xdf") as check, check():
-		run_xdf()
+		preloaded = collect_subjects(cfg)  # XDF → disk + in-memory
 
-	with skip_run("run", "fixations") as check, check():
-		run_fixations(cfg)
+	if not preloaded:
+		preloaded = load_all_subjects(cfg)  # xdf skipped → load once from data/intermediate
 
-	with skip_run("skip", "saccades") as check, check():
-		run_saccades(cfg)
+	eyetracking = {}
+	with skip_run("run", "eyetracking") as check, check():
+		eyetracking = run_eyetracking_features(cfg, preloaded=preloaded, root=ROOT)
 
-	with skip_run("skip", "glmm") as check, check():
-		run_from_config()
+	best_features = None
+	with skip_run("run", "extract_features") as check, check():
+		best_features = run_extract_features(cfg, preloaded, eyetracking, root=ROOT)
 
-	with skip_run("skip", "glmmsecond") as check, check():
-		run_glmmsecond()
+
+	with skip_run("run", "glmmsecond") as check, check():
+		run_glmmsecond(cfg, ROOT, dataframes={"best_features": best_features})
+
