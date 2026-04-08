@@ -61,6 +61,15 @@ with skip_run("skip", "sar_experiment") as check, check():
     ray.init(ignore_reinit_error=True, _system_config={"metrics_report_interval_ms": 0})
     experiment = Experiment(config)
 
+    # Add sensors
+    experiment.register_sensor(
+        name="TobiiEyeTracker", sensor_cls=TobiiEyeTracker, sensor_config={"config": {}}
+    )
+    experiment.calibrate_sensor(
+        "TobiiEyeTracker", screen=config["display"], fullscreen=config["fullscreen"]
+    )
+
+    # Add visual search and mot
     experiment.add_task(
         name="visual_search",
         task_cls=VS,
@@ -82,6 +91,7 @@ with skip_run("skip", "sar_experiment") as check, check():
         order=2,
         instructions=instructions["practice"],
     )
+    # Main game
     experiment.add_task(
         name="main_game",
         task_cls=SARGame,
