@@ -97,6 +97,7 @@ class SARGameTrial(LSLTrial):
             "llm_response": user.last_llm_response,
             "total_steps": user.total_steps,
             "trial_id": self.trial_id,
+            "alt_pressed": any(pygame.key.get_pressed()[k] for k in (pygame.K_LALT, pygame.K_RALT)),
         }
         return [ujson.dumps(state)]
 

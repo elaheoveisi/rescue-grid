@@ -276,7 +276,7 @@ class TobiiEyeTracker(Sensor):
 
         prompt = visual.TextStim(
             win,
-            text="Calibration complete.\n\nPress SPACE to accept  or  R to redo.",
+            text="Calibration complete. Please wait for the experimenter.\n\nPress SPACE to accept  or  R to redo.",
             color="white",
             units="pix",
             height=24,

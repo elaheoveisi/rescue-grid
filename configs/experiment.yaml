@@ -1,4 +1,4 @@
-display: &display 0
+display: &display 1
 fullscreen: &fullscreen true
 
 game:
@@ -16,7 +16,7 @@ game:
   num_real_victims: 12
   lava_per_room: 8
   llm_nudge_interval: 50
-  between_trail_recalibrate_eye_tracker: false
+  between_trail_recalibrate_eye_tracker: true
 
 vs:
   display: *display
@@ -25,10 +25,10 @@ vs:
   height: 600
   rows: 4
   cols: 4
-  total_trials: 5
+  total_trials: 10
   fixation_time: 600
   post_trial_pause: 2000
-  response_timeout: 3
+  response_timeout: 5
   angles: [0, 90, 180, 270]
   output_file: 'vs_results.csv'
   background_color: [120, 120, 120]
