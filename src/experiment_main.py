@@ -3,14 +3,15 @@ from pathlib import Path
 import ray
 import yaml
 from dotenv import load_dotenv
-from experiment.game import SARGame
-from experiment.tutorial import SARTutorial
 from ixp.experiment import Experiment
 from ixp.individual_difference.mot import MOT
 from ixp.individual_difference.vs import VS
-from ixp.sensors.eye_tracker.tobii import TobiiEyeTracker
 from ixp.surveys.nasa_tlx import NasaTLX
 from ixp.surveys.sart import SART
+
+from experiment.game import SARGame
+from experiment.sensors.eye_tracker.tobii import TobiiEyeTracker
+from experiment.tutorial import SARTutorial
 from utils import skip_run
 
 load_dotenv()
@@ -26,6 +27,19 @@ with skip_run("skip", "tobii_calibration") as check, check():
     tobii = TobiiEyeTracker()
     tobii.initialize()
     tobii.calibrate()
+
+with skip_run("run", "tobii_test") as check, check():
+    ray.init(ignore_reinit_error=True, _system_config={"metrics_report_interval_ms": 0})
+    experiment = Experiment(config)
+
+    experiment.register_sensor(
+        name="TobiiEyeTracker", sensor_cls=TobiiEyeTracker, sensor_config={"config": {}}
+    )
+    experiment.calibrate_sensor(
+        "TobiiEyeTracker", screen=config["display"], fullscreen=config["fullscreen"]
+    )
+    experiment.run()
+    experiment.close()
 
 with skip_run("run", "sar_experiment_test") as check, check():
     ray.init(ignore_reinit_error=True, _system_config={"metrics_report_interval_ms": 0})
