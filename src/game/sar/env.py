@@ -227,6 +227,11 @@ class PickupVictimEnv(SARLevelGen):
         # Add victims after checking reachability
         self.victim_placer.place_all(self, self.num_rows, self.num_cols)
 
+        # Victim placer may have placed an object at agent_pos since it only
+        # sees empty cells at placement time. Re-clear it so minigrid's reset
+        # assertion (start_cell is None or can_overlap()) doesn't fail.
+        self.grid.set(*self.agent_pos, None)
+
         victims = self.get_all_victims()
 
         # Create instruction to pick up all victims

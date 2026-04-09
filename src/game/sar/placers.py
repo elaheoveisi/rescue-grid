@@ -165,13 +165,23 @@ class VictimPlacer:
         victim.deplete_rate = self._DEPLETE_RATES[orientation][tier]
         victim.health = self._STARTING_HEALTH.get(direction, 0.90)
 
-    def place_fake_victims(self, level_gen, i, j):
-        """Place fake victims in a room."""
-        for _ in range(self.num_fake_victims):
+    def place_fake_victims(self, level_gen, i, j, forbidden):
+        """Place fake victims in a room, never directly in front of a door."""
+        room = level_gen.get_room(i, j)
+        top_x, top_y = room.top
+        size_x, size_y = room.size
+        candidates = [
+            (x, y)
+            for y in range(top_y + 1, top_y + size_y - 1)
+            for x in range(top_x + 1, top_x + size_x - 1)
+            if level_gen.grid.get(x, y) is None and (x, y) not in forbidden
+        ]
+        random.shuffle(candidates)
+        for pos in candidates[: self.num_fake_victims]:
             obj = FakeVictim(
                 random.choice(self.SHIFTS), random.choice(self.DIRECTIONS), color="red"
             )
-            level_gen.place_in_room(i, j, obj)
+            level_gen.grid.set(pos[0], pos[1], obj)
 
     def _make_direction_list(self, n, locked):
         """Return a shuffled list of n victim directions for a room."""
@@ -184,67 +194,48 @@ class VictimPlacer:
         random.shuffle(dirs)
         return dirs
 
-    def _place_door_victims(
-        self,
-        level_gen,
-        room,
-        directions,
-        near_door_cells,
-        lava_positions,
-        door_positions,
-    ):
-        """Place up to 2 victims near doorways. Returns (reserved cells, count placed)."""
-        top_x, top_y = room.top
-        size_x, size_y = room.size
-        candidates = [
-            (x, y)
-            for y in range(top_y + 1, top_y + size_y - 1)
-            for x in range(top_x + 1, top_x + size_x - 1)
-            if level_gen.grid.get(x, y) is None and (x, y) in near_door_cells
-        ]
-        random.shuffle(candidates)
-        spots = candidates[:2]
-        for k, pos in enumerate(spots):
-            victim = self._make_victim(directions[k])
-            level_gen.grid.set(pos[0], pos[1], victim)
-            self._assign_health(victim, pos, lava_positions, door_positions)
-        return set(spots), len(spots)
-
     def _place_sector_victims(
         self,
         level_gen,
-        i,
-        j,
         room,
         directions,
-        reserved,
+        forbidden,
         lava_positions,
         door_positions,
     ):
-        """Place victims spread across room sectors, skipping reserved cells."""
+        """Place victims spread across room sectors, never in front of doors."""
+        top_x, top_y = room.top
+        size_x, size_y = room.size
+        # Pre-compute interior boundary; re-filtered at point of use so stale
+        # entries (cells occupied by previously placed victims) are excluded.
+        interior = [
+            (x, y)
+            for y in range(top_y + 1, top_y + size_y - 1)
+            for x in range(top_x + 1, top_x + size_x - 1)
+            if (x, y) not in forbidden
+        ]
         for candidates, direction in zip(
-            _sector_candidates(level_gen, room, len(directions), reserved), directions
+            _sector_candidates(level_gen, room, len(directions), forbidden), directions
         ):
+            pool = candidates or [p for p in interior if level_gen.grid.get(*p) is None]
+            if not pool:
+                continue  # room is full, skip this victim
             victim = self._make_victim(direction)
-            if candidates:
-                pos = random.choice(candidates)
-                level_gen.grid.set(pos[0], pos[1], victim)
-            else:
-                _, pos = level_gen.place_in_room(i, j, victim)
+            pos = random.choice(pool)
+            level_gen.grid.set(pos[0], pos[1], victim)
             self._assign_health(victim, pos, lava_positions, door_positions)
 
     def place_all(self, level_gen, num_rows, num_cols):
-        """Place victims in each room: up to 2 near doors, rest spread across sectors."""
+        """Place victims in each room spread across sectors, never in front of doors."""
         lava_positions, door_positions = self._collect_lava_and_door_positions(
             level_gen
         )
 
-        near_door_cells = {
+        # Cells immediately adjacent to any door — victims must not be placed here.
+        door_forbidden = {
             (dx + ox, dy + oy)
             for dx, dy in door_positions
-            for ox in range(-2, 3)
-            for oy in range(-2, 3)
-            if abs(ox) + abs(oy) <= 2
+            for ox, oy in _NEIGHBORS_4
         }
 
         n = self.num_real_victims
@@ -253,25 +244,15 @@ class VictimPlacer:
                 room = level_gen.get_room(i, j)
                 directions = self._make_direction_list(n, room.locked)
 
-                reserved, n_door = self._place_door_victims(
+                self._place_sector_victims(
                     level_gen,
                     room,
                     directions,
-                    near_door_cells,
+                    door_forbidden,
                     lava_positions,
                     door_positions,
                 )
-                self._place_sector_victims(
-                    level_gen,
-                    i,
-                    j,
-                    room,
-                    directions[n_door:],
-                    reserved,
-                    lava_positions,
-                    door_positions,
-                )
-                self.place_fake_victims(level_gen, i, j)
+                self.place_fake_victims(level_gen, i, j, door_forbidden)
 
 
 class VictimTracker:
