@@ -41,10 +41,7 @@ with skip_run("skip", "tobii_test") as check, check():
     experiment.run()
     experiment.close()
 
-<<<<<<< HEAD
-=======
 
->>>>>>> b5e71ebbeea419c292bcdbc5344a2a8a1cba4787
 with skip_run("skip", "sar_experiment_test") as check, check():
     ray.init(ignore_reinit_error=True, _system_config={"metrics_report_interval_ms": 0})
     experiment = Experiment(config)
@@ -61,9 +58,6 @@ with skip_run("skip", "sar_experiment_test") as check, check():
     experiment.run()
     experiment.close()
 
-<<<<<<< HEAD
-with skip_run("run  ", "sar_experiment") as check, check():
-=======
 
 with skip_run("run", "instruction_test") as check, check():
     ray.init(ignore_reinit_error=True, _system_config={"metrics_report_interval_ms": 0})
@@ -84,7 +78,6 @@ with skip_run("run", "instruction_test") as check, check():
 
 
 with skip_run("skip", "sar_experiment") as check, check():
->>>>>>> b5e71ebbeea419c292bcdbc5344a2a8a1cba4787
     ray.init(ignore_reinit_error=True, _system_config={"metrics_report_interval_ms": 0})
     experiment = Experiment(config)
 
@@ -96,7 +89,7 @@ with skip_run("skip", "sar_experiment") as check, check():
         "TobiiEyeTracker", screen=config["display"], fullscreen=config["fullscreen"]
     )
 
-    # Add visual search and mot 
+    # Add visual search and mot
     experiment.add_task(
         name="visual_search",
         task_cls=VS,
