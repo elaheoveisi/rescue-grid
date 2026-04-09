@@ -59,7 +59,7 @@ with skip_run("skip", "sar_experiment_test") as check, check():
     experiment.close()
 
 
-with skip_run("run", "instruction_test") as check, check():
+with skip_run("skip", "instruction_test") as check, check():
     ray.init(ignore_reinit_error=True, _system_config={"metrics_report_interval_ms": 0})
     experiment = Experiment(config)
 
@@ -77,7 +77,7 @@ with skip_run("run", "instruction_test") as check, check():
     experiment.close()
 
 
-with skip_run("skip", "sar_experiment") as check, check():
+with skip_run("run", "sar_experiment") as check, check():
     ray.init(ignore_reinit_error=True, _system_config={"metrics_report_interval_ms": 0})
     experiment = Experiment(config)
 

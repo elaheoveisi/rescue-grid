@@ -85,6 +85,9 @@ class TutorialEnv(SARLevelGen):
         self.place_in_room(0, 0, key)
         return random.choice(balls + [key])
 
+    def show_all_victim_batteries(self, seconds: float = 10.0):
+        pass
+
     def hide_all_victim_batteries(self):
         pass
 

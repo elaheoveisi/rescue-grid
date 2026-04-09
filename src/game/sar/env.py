@@ -163,7 +163,7 @@ class PickupVictimEnv(SARLevelGen):
             num_doors=self._count_objects_by_type(Door),
         )
         self.max_steps = self.fixed_max_steps
-        self._deplete_amount = 16 / self.fixed_max_steps
+        self._deplete_amount = 16.5 / self.fixed_max_steps
         obs, info = super().reset(**kwargs)
         self.instrs.reset_verifier(self)
         self.total_victims = self._count_objects_by_type(REAL_VICTIMS)
