@@ -28,7 +28,7 @@ with skip_run("skip", "tobii_calibration") as check, check():
     tobii.initialize()
     tobii.calibrate()
 
-with skip_run("run", "tobii_test") as check, check():
+with skip_run("skip", "tobii_test") as check, check():
     ray.init(ignore_reinit_error=True, _system_config={"metrics_report_interval_ms": 0})
     experiment = Experiment(config)
 
@@ -41,7 +41,8 @@ with skip_run("run", "tobii_test") as check, check():
     experiment.run()
     experiment.close()
 
-with skip_run("run", "sar_experiment_test") as check, check():
+
+with skip_run("skip", "sar_experiment_test") as check, check():
     ray.init(ignore_reinit_error=True, _system_config={"metrics_report_interval_ms": 0})
     experiment = Experiment(config)
 
@@ -50,12 +51,31 @@ with skip_run("run", "sar_experiment_test") as check, check():
         task_cls=SARGame,
         task_config={"config": config["game"]},
         order=3,
-        # instructions=instructions["main_game"],
+        instructions=instructions["main_game"],
     )
 
     # Run the experiment
     experiment.run()
     experiment.close()
+
+
+with skip_run("run", "instruction_test") as check, check():
+    ray.init(ignore_reinit_error=True, _system_config={"metrics_report_interval_ms": 0})
+    experiment = Experiment(config)
+
+    # Add visual search and mot
+    experiment.add_task(
+        name="visual_search",
+        task_cls=VS,
+        task_config={"config": config["vs"]},
+        order=1,
+        instructions=instructions["visual_search"],
+    )
+
+    # Run the experiment
+    experiment.run()
+    experiment.close()
+
 
 with skip_run("skip", "sar_experiment") as check, check():
     ray.init(ignore_reinit_error=True, _system_config={"metrics_report_interval_ms": 0})

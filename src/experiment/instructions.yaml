@@ -1,20 +1,20 @@
 visual_search:
-  - |
-    Welcome to the experiment.
+  - text: |
+      Welcome to the experiment.
 
-    In this task you will complete a VISUAL SEARCH task.
+      In this task you will complete a VISUAL SEARCH task.
 
-    On each trial, several T SYMBOLS will appear on the screen.
-    Your goal is to find the CORRECT ORIENTATION of T.
+      On each trial, several T SYMBOLS will appear on the screen.
+      Your goal is to find the CORRECT ORIENTATION of T.
 
-    You will respond using the ARROW KEYS. For example:
-      - T → UP arrow key
-      - ┴ → DOWN arrow key
-      - LEFT arrow key if |- and RIGHT arrow key if -|
+      You will respond using the ARROW KEYS based on the direction the T is pointing:
+        - T pointing UP   → UP arrow key
+        - T pointing RIGHT → RIGHT arrow key
+        - T pointing DOWN  → DOWN arrow key
+        - T pointing LEFT  → LEFT arrow key
 
-    Instructions:
-      - Carefully EXAMINE the T shapes to identify the CORRECT DIRECTION.
-      - Respond as QUICKLY and ACCURATELY as possible.
+    image: src/experiment/vs.png
+    image_size: [0.65, 0.25]
 
 multi_object_tracking:
   - |
@@ -61,21 +61,36 @@ practice:
     The practice trials will NOT AFFECT your final results.
 
 main_game:
-  - |
-    In the main task, your goal is to RESCUE VICTIMS while AVOIDING HAZARDS.
+  - text: |
+      In the main task, your goal is to NAVIGATE a grid and RESCUE VICTIMS.
 
+      VICTIMS appear as SYMMETRIC T symbols. Each victim has a HEALTH indicator (shown below), but the HEALTH IS HIDDEN by default.
+
+      You can ask your AI TEAMMATE by pressing ALT to REVEAL the health of a victim, but this will COST YOU TIME.
+
+      ONLY RESCUE VICTIMS WITH NON-ZERO HEALTH.
+
+      Rewards:
+        - Rescue a CORRECT VICTIM (non-zero health)  →  +10
+        - Rescue a DISTRACTOR (asymmetric T)          →  −10
+        - Rescue a ZERO HEALTH victim                 →  −20
+
+    image: src/experiment/health.png
+    image_size: [0.65, 0.15]
+
+  - |
     Controls:
       - LEFT ARROW KEY : TURN LEFT
       - RIGHT ARROW KEY : TURN RIGHT
-      - UP ARROW KEY : MOVE FORWARD to advance
+      - UP ARROW KEY : MOVE FORWARD
       - TAB : PICK UP ITEMS
       - SHIFT : DROP ITEMS you are carrying
       - SPACE : OPEN DOORS
 
     Movement rules:
       - You can ONLY MOVE FORWARD.
-      - MOVING BACKWARD is NOT ALLOWED. If you want to move back, you have to ROTATE and then move forward.
-      - To pick an OBJECT, move next to object POINT TOWARDS the object and press TAB
+      - MOVING BACKWARD is NOT ALLOWED. To move back, ROTATE first then move forward.
+      - To pick an OBJECT, move next to it, POINT TOWARD it, and press TAB.
 
     Keys and doors:
       - You may carry only ONE KEY at a time.
@@ -84,28 +99,10 @@ main_game:
       - OPEN DOORS will only have colored edges.
 
   - |
-    Victims:
-      - VICTIMS appear as T symbols. Note they may be ROTATED.
-      - DISTRACTORS are ASYMMETRIC T shapes.
-
-    To RESCUE a victim:
-      - MOVE to a tile next to the victim.
-      - POINT toward the victim and press TAB to PICK THEM UP.
-
-    Hazards:
-      - Some tiles contain FIRE (they will be ORANGE).
-      - AVOID stepping on FIRE TILES.
-
-    Objective:
-      - RESCUE all the CORRECT VICTIMS within the STEPS AVAILABLE.
-      - AVOID HAZARDS.
-      - You will recieve a NEGATIVE REWARD
-
-  - |
     Interface information:
       - An AI TEAMMATE will provide suggestions in the CHATBOX.
-      - If you are stuck and need help you can press ALT key and the AI teammate will respond.
-      - You CHOOSE to follow the INSTRUCTIONS.
+      - If you are stuck and need help, press ALT and the AI teammate will respond.
+      - You CHOOSE whether to follow the AI's suggestions.
       - The interface will display:
         - VICTIMS RESCUED
         - SCORE
