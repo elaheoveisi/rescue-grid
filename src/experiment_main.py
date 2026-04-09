@@ -65,32 +65,32 @@ with skip_run("run  ", "sar_experiment") as check, check():
     experiment.register_sensor(
         name="TobiiEyeTracker", sensor_cls=TobiiEyeTracker, sensor_config={"config": {}}
     )
-    # experiment.calibrate_sensor(
-    #     "TobiiEyeTracker", screen=config["display"], fullscreen=config["fullscreen"]
-    # )
+    experiment.calibrate_sensor(
+        "TobiiEyeTracker", screen=config["display"], fullscreen=config["fullscreen"]
+    )
 
     # Add visual search and mot 
-    # experiment.add_task(
-    #     name="visual_search",
-    #     task_cls=VS,
-    #     task_config={"config": config["vs"]},
-    #     order=1,
-    #     instructions=instructions["visual_search"],
-    # )
-    # experiment.add_task(
-    #     name="multi_object_tracking",
-    #     task_cls=MOT,
-    #     task_config={"config": config["mot"]},
-    #     order=2,
-    #     instructions=instructions["multi_object_tracking"],
-    # )
-    # experiment.add_task(
-    #     name="practice",
-    #     task_cls=SARTutorial,
-    #     task_config={"config": config["game"]},
-    #     order=2,
-    #     instructions=instructions["practice"],
-    # )
+    experiment.add_task(
+        name="visual_search",
+        task_cls=VS,
+        task_config={"config": config["vs"]},
+        order=1,
+        instructions=instructions["visual_search"],
+    )
+    experiment.add_task(
+        name="multi_object_tracking",
+        task_cls=MOT,
+        task_config={"config": config["mot"]},
+        order=2,
+        instructions=instructions["multi_object_tracking"],
+    )
+    experiment.add_task(
+        name="practice",
+        task_cls=SARTutorial,
+        task_config={"config": config["game"]},
+        order=2,
+        instructions=instructions["practice"],
+    )
     # Main game
     experiment.add_task(
         name="main_game",
