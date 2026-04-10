@@ -58,19 +58,9 @@ xdf:
       - [victim]
 
 glmm2:
-  datasets:
-    - name: features_q
-      source: quarters               # merges features_q25/50/75/100.csv
-      dataframes: [features_q25.csv, features_q50.csv, features_q75.csv, features_q100.csv]
-    - name: all_features
-      source: all_features.csv      # one row per trial, all trials
-    - name: best_features
-      source: best_features.csv     # one row per trial, best trials only
-      dataframes: [best_features.csv]
   continuous: [victims_per_step, mean_fixation_dur_ms, std_pupil_diam,
                game_area_pct_dur, chat_panel_pct_dur, offscreen_pct_dur]
   count:      [n_fixations, n_saccades, saved_victims]
-  quarters:   [25, 50, 75, 100]
 
 eyetracker:
   x_col:       avg_gaze_point_x   # normalized 0-1 (no PsychoPy window set during recording)

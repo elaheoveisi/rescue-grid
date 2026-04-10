@@ -1,9 +1,13 @@
 from pathlib import Path
 
 import pandas as pd
-import yaml
 
-from analysis.data.xdf import load_all_subjects
+from analysis.features.conventions import (
+    DEFAULT_PUPIL_COL,
+    best_suffix,
+    detect_category,
+    subject_label,
+)
 from analysis.features.eyetracking_features import run_eyetracking_features
 
 
@@ -46,7 +50,7 @@ def extract_transition_features(trans_df: pd.DataFrame) -> dict:
 
 
 def extract_pupil_features(eye_df: pd.DataFrame, eye_cfg: dict) -> dict:
-    pupil_col = "avg_pupil_diam"
+    pupil_col = eye_cfg.get("pupil_col", DEFAULT_PUPIL_COL)
     if pupil_col not in eye_df.columns:
         return {}
     series = pd.to_numeric(eye_df[pupil_col], errors="coerce")
@@ -99,10 +103,11 @@ def run_extract_features(cfg: dict, preloaded: dict, eyetracking: dict,
     aoi_by_sub = eyetracking.get("aoi",       {})
 
     rows = []
+    suffix = best_suffix(cfg)
     for sid in subjects:
         trials = preloaded.get(sid, {})
         for trial_id, streams in trials.items():
-            if not trial_id.endswith("_best"):
+            if not trial_id.endswith(suffix):
                 continue
 
             game_df = streams.get("game",        pd.DataFrame())
@@ -116,11 +121,10 @@ def run_extract_features(cfg: dict, preloaded: dict, eyetracking: dict,
             fix_aoi_df  = aoi_res.get("fix_aoi",     pd.DataFrame())
             trans_df    = aoi_res.get("transitions",  pd.DataFrame())
 
-            base_name = trial_id.replace("_best", "")
-            category  = next((c for c in ["gemini", "openai", "dummy"] if c in base_name), "unknown")
+            category = detect_category(trial_id, cfg)
 
             row = {
-                "participant": f"sub-{sid}",
+                "participant": subject_label(sid, cfg),
                 "trial":       trial_id,
                 "category":    category,
                 "expertise":   expertise.get(sid, "unknown"),
@@ -146,14 +150,3 @@ def run_extract_features(cfg: dict, preloaded: dict, eyetracking: dict,
         df.to_csv(out, index=False)
         print(f"\nbest_features -> {out.relative_to(root)}")
     return df
-
-
-if __name__ == "__main__":
-    _root   = Path(__file__).resolve().parents[2]
-    _config = _root / "configs" / "config_analysis.yml"
-    with open(_config) as f:
-        cfg = yaml.safe_load(f)
-
-    preloaded   = load_all_subjects(cfg)
-    eyetracking = run_eyetracking_features(cfg, preloaded=preloaded, root=_root)
-    run_extract_features(cfg, preloaded, eyetracking, root=_root)

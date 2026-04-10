@@ -1,12 +1,15 @@
 
-import re
 import warnings
 from pathlib import Path
 
 import pandas as pd
-import yaml
 
 from analysis.data.xdf import load_all_subjects
+from analysis.features.conventions import (
+    DEFAULT_OFFSCREEN_LABEL,
+    strip_run_suffix,
+    subject_label,
+)
 from analysis.features.eyetracking_data import run_eyetracking
 
 
@@ -20,13 +23,13 @@ def assign_aoi(x_px: float, y_px: float, aois: list[dict]) -> str:
     for aoi in aois:
         if aoi["x_min"] <= x_px <= aoi["x_max"] and aoi["y_min"] <= y_px <= aoi["y_max"]:
             return aoi["name"]
-    return "offscreen"
+    return DEFAULT_OFFSCREEN_LABEL
 
 
 def aoi_transition_matrix(fix_aoi_df: pd.DataFrame, aois: list[dict]) -> pd.DataFrame:
     labels   = [a["name"] for a in aois]
     matrix   = pd.DataFrame(0, index=labels, columns=labels)
-    sequence = fix_aoi_df[fix_aoi_df["aoi"] != "offscreen"]["aoi"].tolist()
+    sequence = fix_aoi_df[fix_aoi_df["aoi"] != DEFAULT_OFFSCREEN_LABEL]["aoi"].tolist()
     for src, dst in zip(sequence[:-1], sequence[1:]):
         if src in matrix.index and dst in matrix.columns:
             matrix.loc[src, dst] += 1
@@ -47,7 +50,8 @@ def label_fixations(fix_df: pd.DataFrame, aois: list[dict]) -> pd.DataFrame:
 def _process_subject(subject_id: str,
                      fix_by_trial: dict,
                      processed_dir: Path,
-                     aois: list[dict]) -> dict:
+                     aois: list[dict],
+                     cfg: dict) -> dict:
     """Label fixations with AOIs for one subject using in-memory fixation data.
 
     Args:
@@ -82,7 +86,7 @@ def _process_subject(subject_id: str,
         fix_aoi = label_fixations(fix_df, aois)
         trans   = aoi_transition_matrix(fix_aoi, aois)
 
-        out_dir = processed_dir / f"sub-{subject_id}" / trial_id
+        out_dir = processed_dir / subject_label(subject_id, cfg) / trial_id
         out_dir.mkdir(parents=True, exist_ok=True)
         fix_aoi.to_csv(out_dir / "fixations_aoi.csv", index=False)
         trans.to_csv(out_dir / "aoi_transitions.csv")
@@ -94,7 +98,7 @@ def _process_subject(subject_id: str,
         dur_by_aoi = fix_aoi.groupby("aoi")["duration_ms"].agg(["sum", "mean"])
         total_dur  = fix_aoi["duration_ms"].sum()
         n_total    = len(fix_aoi)
-        n_off      = counts.get("offscreen", 0)
+        n_off      = counts.get(DEFAULT_OFFSCREEN_LABEL, 0)
 
         aoi_stats = {}
         for a in aois:
@@ -114,7 +118,10 @@ def _process_subject(subject_id: str,
         print(f"         {trial_id:35s}  total={n_total:>4}  offscreen={n_off:>3}  "
               + "  ".join(aoi_parts))
 
-        off_dur = float(dur_by_aoi.loc["offscreen", "sum"]) if "offscreen" in dur_by_aoi.index else 0.0
+        off_dur = (
+            float(dur_by_aoi.loc[DEFAULT_OFFSCREEN_LABEL, "sum"])
+            if DEFAULT_OFFSCREEN_LABEL in dur_by_aoi.index else 0.0
+        )
         off_pct = round(off_dur / total_dur * 100, 2) if total_dur > 0 else 0.0
 
         results[trial_id] = {
@@ -173,7 +180,7 @@ def run_aoi_fixations(cfg: dict, eyetracking: dict | None = None,
         if not fix_by_trial:
             print(f"  [SKIP] {sid}: no fixation data")
             continue
-        aoi_results[sid] = _process_subject(sid, fix_by_trial, processed_dir, aois)
+        aoi_results[sid] = _process_subject(sid, fix_by_trial, processed_dir, aois, cfg)
 
     all_summaries = [
         trial_data["summary"]
@@ -193,7 +200,7 @@ def run_aoi_fixations(cfg: dict, eyetracking: dict | None = None,
     by_trial: dict[str, pd.DataFrame] = {}
 
     for sid in subjects:
-        sub_proc = processed_dir / f"sub-{sid}"
+        sub_proc = processed_dir / subject_label(sid, cfg)
         if not sub_proc.exists():
             continue
         for trial_dir in sorted(sub_proc.iterdir()):
@@ -203,7 +210,7 @@ def run_aoi_fixations(cfg: dict, eyetracking: dict | None = None,
             mat = pd.read_csv(t_file, index_col=0)
             mat = mat.reindex(index=aoi_names, columns=aoi_names, fill_value=0)
             total_trans += mat
-            base = re.sub(r"_run\d+$", "", trial_dir.name)
+            base = strip_run_suffix(trial_dir.name, cfg)
             if base not in by_trial:
                 by_trial[base] = pd.DataFrame(0, index=aoi_names, columns=aoi_names)
             by_trial[base] += mat
@@ -218,13 +225,3 @@ def run_aoi_fixations(cfg: dict, eyetracking: dict | None = None,
         print(f"Aggregated transitions ({base}) -> {out.relative_to(root)}")
 
     return aoi_results
-
-
-if __name__ == "__main__":
-    _config = Path(__file__).resolve().parents[2] / "configs" / "config_analysis.yml"
-    with open(_config) as f:
-        cfg = yaml.safe_load(f)
-
-    preloaded   = load_all_subjects(cfg)
-    eyetracking = run_eyetracking(cfg, preloaded=preloaded)
-    run_aoi_fixations(cfg, eyetracking=eyetracking)

@@ -4,9 +4,8 @@ from pathlib import Path
 from analysis.data.xdf import collect_subjects, load_all_subjects
 from analysis.features.extract_features import run_extract_features
 from analysis.features.eyetracking_features import run_eyetracking_features
-#from analysis.glmm import run_from_config
 from analysis.glmmsecond import run_all as run_glmmsecond
-from src.utils import skip_run
+from analysis.utils import skip_run
 
 ROOT   = Path(__file__).resolve().parent
 CONFIG = ROOT / "configs" / "config_analysis.yml"
@@ -17,7 +16,7 @@ if __name__ == "__main__":
 
 	preloaded = {}
 
-	with skip_run("skip", "xdf") as check, check():
+	with skip_run("run", "xdf") as check, check():
 		preloaded = collect_subjects(cfg)  # XDF → disk + in-memory
 
 	if not preloaded:

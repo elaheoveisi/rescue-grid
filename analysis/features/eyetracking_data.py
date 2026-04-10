@@ -1,10 +1,13 @@
 
 import numpy as np
 import pandas as pd
-import yaml
 from igaze.detectors import fixation_detection, saccade_detection
 
 from analysis.data.xdf import load_all_subjects
+from analysis.features.conventions import (
+    FIXATION_COLUMNS,
+    SACCADE_COLUMNS,
+)
 
 "The reason we used this: https://link.springer.com/article/10.3758/s13428-013-0422-2"
 
@@ -97,8 +100,8 @@ def run_fixations(cfg: dict, preloaded: dict | None = None) -> dict:
                   f"mean_dur={summary['mean_duration_ms']:>7.1f}ms")
 
             fix_df = (
-                pd.DataFrame(Efix, columns=["start_ms", "end_ms", "duration_ms", "x", "y"])
-                if Efix else pd.DataFrame(columns=["start_ms", "end_ms", "duration_ms", "x", "y"])
+                pd.DataFrame(Efix, columns=FIXATION_COLUMNS)
+                if Efix else pd.DataFrame(columns=FIXATION_COLUMNS)
             )
             results[sid][trial_id] = {"fixations": fix_df, "summary": summary}
 
@@ -187,9 +190,7 @@ def run_saccades(cfg: dict, preloaded: dict | None = None) -> dict:
 
             sac_df = (
                 pd.DataFrame(rows)
-                if rows else pd.DataFrame(columns=["saccade_id", "start_ms", "end_ms",
-                                                    "duration_ms", "x_start", "y_start",
-                                                    "x_end", "y_end", "amplitude"])
+                if rows else pd.DataFrame(columns=SACCADE_COLUMNS)
             )
             results[sid][trial_id] = {
                 "saccades": sac_df,
@@ -218,12 +219,3 @@ def run_eyetracking(cfg: dict, preloaded: dict | None = None) -> dict:
         "fixations": run_fixations(cfg, preloaded=preloaded),
         "saccades":  run_saccades(cfg, preloaded=preloaded),
     }
-
-
-if __name__ == "__main__":
-    from pathlib import Path
-    CONFIG = Path(__file__).resolve().parents[2] / "configs" / "config_analysis.yml"
-    with open(CONFIG) as f:
-        cfg = yaml.safe_load(f)
-
-    results = run_eyetracking(cfg)
