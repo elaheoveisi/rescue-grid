@@ -13,6 +13,7 @@ CONFIG = ROOT / "configs" / "config_analysis.yml"
 if __name__ == "__main__":
 	with open(CONFIG) as f:
 		cfg = yaml.safe_load(f)
+	processed_dir = ROOT / cfg["paths"]["processed"]
 
 	preloaded = {}
 
@@ -28,7 +29,7 @@ if __name__ == "__main__":
 
 	best_features = None
 	with skip_run("run", "extract_features") as check, check():
-		best_features = run_extract_features(cfg, preloaded, eyetracking, root=ROOT)
+		best_features = run_extract_features(cfg, preloaded, eyetracking, processed_dir=processed_dir)
 
 
 	with skip_run("run", "glmmsecond") as check, check():

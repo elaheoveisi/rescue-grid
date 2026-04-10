@@ -62,10 +62,13 @@ def extract_pupil_features(eye_df: pd.DataFrame, eye_cfg: dict) -> dict:
 
 
 def extract_game_features(game_df: pd.DataFrame) -> dict:
+    reward = pd.to_numeric(game_df["reward"], errors="coerce") if "reward" in game_df.columns else pd.Series(dtype=float)
     features = {
         "n_actions":    int(game_df["action"].notna().sum()),
         "n_llm_calls":  int(game_df["llm_response"].notna().sum()) if "llm_response" in game_df.columns else 0,
         "saved_victims": int(game_df["saved_victims"].max()),
+        "mean_reward":  float(reward.mean()) if not reward.empty else 0.0,
+        "total_reward": float(reward.sum()) if not reward.empty else 0.0,
     }
     max_steps = game_df["step_count"].max()
     features["victims_per_step"] = (features["saved_victims"] / max_steps) if max_steps else 0.0
@@ -77,7 +80,7 @@ def extract_game_features(game_df: pd.DataFrame) -> dict:
 # ---------------------------------------------------------------------------
 
 def run_extract_features(cfg: dict, preloaded: dict, eyetracking: dict,
-                         root=None) -> pd.DataFrame:
+                         processed_dir: Path) -> pd.DataFrame:
     """Extract per-trial features for _best trials and save best_features.csv.
 
     Args:
@@ -87,15 +90,13 @@ def run_extract_features(cfg: dict, preloaded: dict, eyetracking: dict,
                      {"fixations": {sid: {trial_id: {"fixations": df, ...}}},
                       "saccades":  {sid: {trial_id: {"saccades":  df, ...}}},
                       "aoi":       {sid: {trial_id: {"fix_aoi": df, "transitions": df, ...}}}}
+        processed_dir: Output directory for best_features.csv.
 
     Returns:
         DataFrame with one row per best trial.
     """
-    if root is None:
-        root = Path(__file__).resolve().parents[2]
-    subjects      = [str(s) for s in cfg.get("sub", [])]
-    expertise     = cfg.get("expertise", {})
-    processed_dir = root / cfg["paths"]["processed"]
+    subjects  = [str(s) for s in cfg.get("sub", [])]
+    expertise = cfg.get("expertise", {})
 
     eye_cfg    = cfg.get("eyetracker", {})
     fix_by_sub = eyetracking.get("fixations", {})
@@ -148,5 +149,5 @@ def run_extract_features(cfg: dict, preloaded: dict, eyetracking: dict,
         out = processed_dir / "best_features.csv"
         out.parent.mkdir(parents=True, exist_ok=True)
         df.to_csv(out, index=False)
-        print(f"\nbest_features -> {out.relative_to(root)}")
+        print(f"\nbest_features -> {out}")
     return df
