@@ -63,12 +63,14 @@ def extract_pupil_features(eye_df: pd.DataFrame, eye_cfg: dict) -> dict:
 
 def extract_game_features(game_df: pd.DataFrame) -> dict:
     reward = pd.to_numeric(game_df["reward"], errors="coerce") if "reward" in game_df.columns else pd.Series(dtype=float)
+    cumulative_reward = float(reward.sum()) if not reward.empty else 0.0
     features = {
         "n_actions":    int(game_df["action"].notna().sum()),
         "n_llm_calls":  int(game_df["llm_response"].notna().sum()) if "llm_response" in game_df.columns else 0,
         "saved_victims": int(game_df["saved_victims"].max()),
         "mean_reward":  float(reward.mean()) if not reward.empty else 0.0,
-        "total_reward": float(reward.sum()) if not reward.empty else 0.0,
+        "total_reward": cumulative_reward,
+        "cumulative_reward": cumulative_reward,
     }
     max_steps = game_df["step_count"].max()
     features["victims_per_step"] = (features["saved_victims"] / max_steps) if max_steps else 0.0

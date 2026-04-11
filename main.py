@@ -17,7 +17,7 @@ if __name__ == "__main__":
 
 	preloaded = {}
 
-	with skip_run("run", "xdf") as check, check():
+	with skip_run("skip", "xdf") as check, check():
 		preloaded = collect_subjects(cfg)  # XDF → disk + in-memory
 
 	if not preloaded:

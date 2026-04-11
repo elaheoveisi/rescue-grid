@@ -58,7 +58,7 @@ xdf:
       - [victim]
 
 glmm2:
-  continuous: [victims_per_step, mean_fixation_dur_ms, std_pupil_diam,
+  continuous: [victims_per_step, cumulative_reward, mean_fixation_dur_ms, std_pupil_diam,
                game_area_pct_dur, chat_panel_pct_dur, offscreen_pct_dur]
   count:      [n_fixations, n_saccades, saved_victims]
 
