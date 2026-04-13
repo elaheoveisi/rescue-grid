@@ -1,11 +1,12 @@
+import pandas as pd
 from pathlib import Path
 
-import pandas as pd
 
 from analysis.features.conventions import (
     DEFAULT_PUPIL_COL,
     best_suffix,
     detect_category,
+    output_file,
     subject_label,
 )
 from analysis.features.eyetracking_features import run_eyetracking_features
@@ -148,7 +149,7 @@ def run_extract_features(cfg: dict, preloaded: dict, eyetracking: dict,
 
     df = pd.DataFrame(rows)
     if not df.empty:
-        out = processed_dir / "best_features.csv"
+        out = processed_dir / output_file(cfg, "best_features_file")
         out.parent.mkdir(parents=True, exist_ok=True)
         df.to_csv(out, index=False)
         print(f"\nbest_features -> {out}")

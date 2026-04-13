@@ -1,22 +1,38 @@
-from pathlib import Path
 import warnings
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import statsmodels.formula.api as smf
 from statsmodels.stats.multitest import multipletests
 from statsmodels.tools.sm_exceptions import ConvergenceWarning
 
-
+from analysis.features.conventions import condition_for_category
 
 
 def prepare_df(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     """Add condition and expertise columns, keep only FEATURES + id cols."""
     expertise_map = {str(k): str(v) for k, v in cfg.get("expertise", {}).items()}
     df = df.copy()
-    df["condition"] = df["category"].apply(
-        lambda c: "no_llm" if c == "dummy" else "llm"
+    derived_condition = df["category"].apply(
+        lambda c: condition_for_category(c, cfg)
     )
-    df["expertise"] = df["participant"].str.replace("sub-", "", regex=False).map(expertise_map).fillna("unknown")
+    if "condition" in df.columns:
+        df["condition"] = df["condition"].fillna(derived_condition)
+    else:
+        df["condition"] = derived_condition
+
+    derived_expertise = (
+        df["participant"]
+        .str.replace("sub-", "", regex=False)
+        .map(expertise_map)
+        .fillna("unknown")
+    )
+    if "expertise" in df.columns:
+        df["expertise"] = df["expertise"].fillna(derived_expertise)
+    else:
+        df["expertise"] = derived_expertise
+
     df["condition"] = pd.Categorical(df["condition"], categories=["no_llm", "llm"])
     df["expertise"] = pd.Categorical(df["expertise"], categories=["novice", "expert"])
     features = cfg["glmm2"]["continuous"] + cfg["glmm2"]["count"]
@@ -46,8 +62,9 @@ def run_glmm(df: pd.DataFrame, outcome: str):
     return model
 
 
-def run_all(cfg: dict, root: Path,
-            dataframes: dict, verbose: bool = True) -> pd.DataFrame:
+def run_all(
+    cfg: dict, root: Path, dataframes: dict, verbose: bool = True
+) -> pd.DataFrame:
     """Run GLMM on all datasets.
 
     Args:
@@ -57,7 +74,7 @@ def run_all(cfg: dict, root: Path,
         verbose:    Print progress.
     """
     processed_dir = root / cfg["paths"]["processed"]
-    features      = cfg["glmm2"]["continuous"] + cfg["glmm2"]["count"]
+    features = cfg["glmm2"]["continuous"] + cfg["glmm2"]["count"]
     rows = []
     for name, df in dataframes.items():
         prepared = prepare_df(df, cfg)
@@ -71,14 +88,16 @@ def run_all(cfg: dict, root: Path,
             if model is None:
                 continue
             for term in model.params.index:
-                rows.append({
-                    "dataset":  name,
-                    "outcome":  outcome,
-                    "term":     term,
-                    "coef":     model.params[term],
-                    "se":       model.bse.get(term),
-                    "p_value":  model.pvalues.get(term),
-                })
+                rows.append(
+                    {
+                        "dataset": name,
+                        "outcome": outcome,
+                        "term": term,
+                        "coef": model.params[term],
+                        "se": model.bse.get(term),
+                        "p_value": model.pvalues.get(term),
+                    }
+                )
             if verbose:
                 print(f"  {outcome}: fitted")
 
@@ -88,11 +107,10 @@ def run_all(cfg: dict, root: Path,
         _, fdr, _, _ = multipletests(results.loc[valid, "p_value"], method="fdr_bh")
         results["p_value_fdr"] = np.nan
         results.loc[valid, "p_value_fdr"] = fdr
+        processed_dir.mkdir(parents=True, exist_ok=True)
         out = processed_dir / "glmm2_results.csv"
         results.to_csv(out, index=False)
         if verbose:
             print(f"\nResults saved -> {out.relative_to(root)}")
             print(results.to_string(index=False))
     return results
-
-

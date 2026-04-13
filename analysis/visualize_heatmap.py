@@ -9,6 +9,8 @@ import pandas as pd
 import yaml
 from scipy.ndimage import gaussian_filter
 
+from analysis.features.conventions import output_file
+
 ROOT   = Path(__file__).resolve().parent.parent
 CONFIG = ROOT / "configs" / "config_analysis.yml"
 
@@ -38,7 +40,7 @@ def load_fixations(subjects, trial_filter=None):
                 continue
             if trial_filter and trial_dir.name != trial_filter:
                 continue
-            f = trial_dir / "fixations_aoi.csv"
+            f = trial_dir / output_file(cfg, "fixation_aoi_file")
             if not f.exists():
                 continue
             df = pd.read_csv(f)
@@ -209,7 +211,7 @@ def load_transitions(subjects, trial_filter=None):
                 continue
             if trial_filter and trial_dir.name != trial_filter:
                 continue
-            f = trial_dir / "aoi_transitions.csv"
+            f = trial_dir / output_file(cfg, "aoi_transitions_file")
             if not f.exists():
                 continue
             mat = pd.read_csv(f, index_col=0)

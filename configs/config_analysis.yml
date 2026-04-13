@@ -31,6 +31,19 @@ paths:
   intermediate: data/intermediate   # output of xdf.py  (per-trial h5/csv)
   processed:    data/processed       # output of fixations/saccades
 
+analysis:
+  categories: [gemini, openai, dummy]
+  condition_by_category:
+    dummy: no_llm
+    gemini: llm
+    openai: llm
+  outputs:
+    best_features_file: best_features.csv
+    fixation_aoi_file: fixations_aoi.csv
+    aoi_transitions_file: aoi_transitions.csv
+    aoi_transitions_all_file: aoi_transitions_all.csv
+    aoi_transitions_by_trial_template: "aoi_transitions_{trial}.csv"
+
 xdf:
   game_stream: SARGame
   eye_stream: TobiiEyeTracker
@@ -58,7 +71,10 @@ xdf:
       - [victim]
 
 glmm2:
-  continuous: [victims_per_step, cumulative_reward, mean_fixation_dur_ms, std_pupil_diam,
+  verbose: true
+  output_file: glmm2_results.csv
+  group_col: participant
+  continuous: [victims_per_step, total_reward, mean_fixation_dur_ms, std_pupil_diam,
                game_area_pct_dur, chat_panel_pct_dur, offscreen_pct_dur]
   count:      [n_fixations, n_saccades, saved_victims]
 
