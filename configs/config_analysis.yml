@@ -28,7 +28,7 @@ expertise:
 
 paths:
   raw:          data/raw             # raw XDF files per subject
-  intermediate: data/intermediate   # output of xdf.py  (per-trial h5/csv)
+  intermediate: data/intermediate   # output of xdf.py  
   processed:    data/processed       # output of fixations/saccades
 
 analysis:
