@@ -133,6 +133,20 @@ When the figure exists, place it in paper/figures/ and reference it as:
 
 # Research impact statement
 
+
+MOSAIC lowers the engineering barrier to conducting controlled human–LLM (Large Language Model) teaming research by offering an integrated, reusable experimental platform. At its core is a dynamic, multi-room search-and-rescue task where human operators navigate environments, unlock doors, avoid hazards, and distinguish real victims from fake under time pressure and uncertainty. Built to standard reinforcement learning specifications via a Gymnasium-compatible interface, MOSAIC allows AI advisory agents to interact seamlessly within the simulation environment alongside human subjects.   
+Medium
+
+
+Rather than requiring researchers to build game mechanics, AI integration, and telemetry from scratch, MOSAIC provides a unified system with modular architecture. Key parameters, including task layouts, hazard and victim placement, difficulty pacing, reward structures, visual perspectives, choice of AI provider, and prompting strategies, can be dynamically configured without modifying core task code. Simultaneously, the platform logs detailed behavioral data, enables full trial replays, and synchronizes physiological sensors, such as eye-tracking and EEG devices.   
+
+
+MOSAIC's versatility has already supported empirical human–AI collaboration studies. In work accepted for IEEE SMC 2026 and available in Arxiv[@oveisi2026llm]  , researchers used the platform to evaluate how user expertise affects visual attention and task planning under LLM guidance.Other studies [@oveisillm] leveraged MOSAIC’s physiological monitoring capabilities to analyze real-time cognitive responses during task execution.
+
+Together, these applications show MOSAIC’s potential for multimodal investigations into how humans evaluate, verify, and act upon AI guidance. Future applications include controlled studies on trust calibration, AI reliability, workload management, situation awareness, error detection, adaptive AI assistance, and reinforcement learning. Designed as an open, modular framework, MOSAIC promotes reproducible, cross-disciplinary research across human factors, human-computer interaction (HCI), and neuroergonomics.
+
+
+
 <!--
 OUTLINE - 150-250 words. Do not draft yet.
 
